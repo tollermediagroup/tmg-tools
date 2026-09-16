@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gerador de text box — Toolbench</title>
+<meta name="description" content="Legenda estilo TikTok e Reels: uma caixa por linha, com largura própria e sem emenda entre elas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Anton&family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/ui.css">
+<style>
+  .app{display:grid;grid-template-columns:338px 1fr;height:calc(100dvh - var(--topbar-h));min-height:0}
+
+  .panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;overscroll-behavior:contain}
+  .brand{
+    display:flex;align-items:center;gap:11px;padding:15px 20px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3;
+    background:color-mix(in srgb, var(--panel) 90%, transparent);backdrop-filter:blur(14px);
+  }
+  .brand b{font-family:var(--disp);font-size:14px;font-weight:600;letter-spacing:-.015em}
+  .brand span{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em}
+
+  fieldset{border:0;margin:0;padding:18px 20px 20px;border-bottom:1px solid var(--line-soft)}
+  legend{
+    padding:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px;
+  }
+  label.f{display:block;margin-bottom:14px}
+  label.f:last-child{margin-bottom:0}
+  label.f > span{display:block;font-size:11.5px;font-weight:500;color:var(--ink-dim);margin-bottom:6px}
+
+  input[type=text],textarea,select{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    border-radius:var(--r);padding:9px 11px;font:inherit;font-size:13px;outline:none;
+    box-shadow:var(--shadow-1);transition:border-color .14s,box-shadow .14s,background .14s;
+  }
+  input[type=text]:hover,textarea:hover,select:hover{border-color:var(--line-strong)}
+  input[type=text]:focus,textarea:focus,select:focus{
+    border-color:var(--focus);background:var(--panel-3);box-shadow:0 0 0 3px rgba(124,140,255,.16);
+  }
+  textarea{resize:vertical;min-height:88px;line-height:1.5}
+  select{
+    appearance:none;cursor:pointer;padding-right:30px;
+    background-image:linear-gradient(45deg,transparent 50%,var(--ink-dim) 50%),linear-gradient(135deg,var(--ink-dim) 50%,transparent 50%);
+    background-position:calc(100% - 16px) calc(50% + 1px),calc(100% - 12px) calc(50% + 1px);
+    background-size:4px 4px;background-repeat:no-repeat;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:3px;box-shadow:var(--shadow-1)}
+  .seg button{
+    flex:1;background:transparent;border:0;color:var(--ink-dim);font:inherit;font-size:12px;
+    font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;white-space:nowrap;
+    transition:background .14s,color .14s;
+  }
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed=true]{
+    background:linear-gradient(#2E3644,#262D39);color:#fff;
+    box-shadow:0 1px 2px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.05) inset;
+  }
+
+  .range{display:flex;align-items:center;gap:12px}
+  input[type=range]{
+    flex:1;appearance:none;-webkit-appearance:none;height:4px;border-radius:99px;
+    background:#2B3240;outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;border:0;
+    cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.55),0 0 0 4px var(--accent-soft);
+  }
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer}
+  .range output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:46px;text-align:right}
+
+  input[type=color]{
+    width:36px;height:36px;padding:0;border:1px solid var(--line);border-radius:9px;
+    background:var(--panel-2);cursor:pointer;flex:none;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:6px}
+  .color-pair{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-dim)}
+
+  .check{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;font-size:13px;color:var(--ink-dim);transition:color .14s}
+  .check:hover{color:var(--ink)}
+  .check input{
+    appearance:none;width:36px;height:20px;border-radius:20px;background:#2B3240;position:relative;
+    cursor:pointer;flex:none;transition:background .18s;box-shadow:0 1px 2px rgba(0,0,0,.35) inset;
+  }
+  .check input::after{
+    content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#7E8697;transition:.18s cubic-bezier(.3,.7,.3,1);box-shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+  .check input:checked{background:var(--accent-soft);box-shadow:0 0 0 1px rgba(240,180,41,.35) inset}
+  .check input:checked::after{left:18px;background:var(--accent);box-shadow:0 1px 6px rgba(240,180,41,.5)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--ink-dim);
+    background:transparent;border:1px solid var(--line);border-radius:99px;padding:6px 12px;
+    cursor:pointer;transition:all .12s;
+  }
+  .chip:hover{color:var(--ink);border-color:var(--line-strong)}
+
+  .file-row{display:flex;gap:8px;align-items:center}
+  .file-row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hint{font-size:11px;color:var(--ink-faint);line-height:1.55;margin:8px 0 0}
+
+  /* ---------- palco ---------- */
+  .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
+  .stage-bar{
+    display:flex;align-items:center;gap:8px;padding:12px 20px;
+    border-bottom:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap;
+  }
+  .stage-bar .spacer{flex:1}
+  .meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+  .canvas-wrap{
+    flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:26px;
+    background:
+      repeating-conic-gradient(#191D25 0% 25%,#14181F 0% 50%) 50% / 22px 22px;
+  }
+  #preview{
+    display:block;max-width:100%;max-height:100%;width:auto;height:auto;
+    box-shadow:0 0 0 1px rgba(255,255,255,.07),0 22px 64px rgba(0,0,0,.6);border-radius:4px;
+  }
+  .stage-foot{
+    display:flex;align-items:center;gap:14px;padding:14px 20px;
+    border-top:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap;
+  }
+  .stage-foot .note{font-size:12px;color:var(--ink-faint);flex:1;min-width:220px;line-height:1.5}
+
+  @media (max-width:980px){
+    .app{grid-template-columns:1fr;height:auto}
+    .panel{order:2;border-right:0;border-top:1px solid var(--line);overflow:visible}
+    .stage{order:1}
+    .canvas-wrap{min-height:52vh}
+  }
+</style>
+</head>
+<body data-tool="textbox">
+
+<div id="topbar"></div>
+<script src="../assets/shell.js"></script>
+
+<div class="app">
+
+  <aside class="panel">
+    <div class="brand"><div><b>Text box</b><br><span>tiktok · reels · shorts</span></div></div>
+
+    <fieldset>
+      <legend>Texto</legend>
+      <textarea id="text" spellcheck="false" aria-label="Texto da legenda"></textarea>
+      <p class="hint">Enter força uma quebra de linha. Sem Enter, a quebra segue a largura máxima lá embaixo.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Atalhos</legend>
+      <div class="chips" id="presets"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Tipografia</legend>
+      <div class="row2" style="margin-bottom:14px">
+        <label class="f" style="margin:0"><span>Fonte</span>
+          <select id="fontFamily">
+            <option value="Inter">Inter</option>
+            <option value="Archivo Black">Archivo Black</option>
+            <option value="Anton">Anton</option>
+            <option value="Montserrat">Montserrat</option>
+            <option value="Poppins">Poppins</option>
+            <option value="Arial">Arial (sistema)</option>
+          </select>
+        </label>
+        <label class="f" style="margin:0"><span>Peso</span>
+          <select id="fontWeight">
+            <option value="400">Normal</option>
+            <option value="600">Semibold</option>
+            <option value="700">Bold</option>
+            <option value="800">Extrabold</option>
+            <option value="900">Black</option>
+          </select>
+        </label>
+      </div>
+      <label class="f"><span>Tamanho</span><div class="range"><input type="range" id="fontSize" min="18" max="160" step="1"><output id="fontSizeOut"></output></div></label>
+      <label class="f"><span>Espaçamento entre letras</span><div class="range"><input type="range" id="tracking" min="-4" max="12" step="0.5"><output id="trackingOut"></output></div></label>
+      <label class="check"><input type="checkbox" id="uppercase"> Tudo em maiúsculas</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Cores</legend>
+      <div class="row2">
+        <div class="color-pair"><input type="color" id="textColor"><span>Texto</span></div>
+        <div class="color-pair"><input type="color" id="boxColor"><span>Caixa</span></div>
+      </div>
+      <label class="f" style="margin-top:14px"><span>Opacidade da caixa</span><div class="range"><input type="range" id="boxOpacity" min="0" max="100" step="1"><output id="boxOpacityOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Sombra atrás do bloco</span><div class="range"><input type="range" id="shadow" min="0" max="60" step="1"><output id="shadowOut"></output></div></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Caixa</legend>
+      <label class="f"><span>Arredondamento</span><div class="range"><input type="range" id="radius" min="0" max="60" step="1"><output id="radiusOut"></output></div></label>
+      <label class="f"><span>Respiro nas laterais</span><div class="range"><input type="range" id="padX" min="0" max="90" step="1"><output id="padXOut"></output></div></label>
+      <label class="f"><span>Respiro em cima e embaixo</span><div class="range"><input type="range" id="padY" min="0" max="60" step="1"><output id="padYOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Espaço entre as linhas</span><div class="range"><input type="range" id="lineGap" min="-8" max="60" step="1"><output id="lineGapOut"></output></div></label>
+      <p class="hint">Em 0 as caixas encostam sem emenda e sem cobrir o texto da linha vizinha — o ajuste que no Premiere precisa ser feito linha por linha.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Quebra e alinhamento</legend>
+      <label class="f"><span>Largura máxima do texto</span><div class="range"><input type="range" id="maxWidthPct" min="25" max="100" step="1"><output id="maxWidthPctOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Alinhamento das caixas</span>
+        <div class="seg" id="align">
+          <button type="button" data-v="left">Esquerda</button>
+          <button type="button" data-v="center">Centro</button>
+          <button type="button" data-v="right">Direita</button>
+        </div>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Posição no quadro</legend>
+      <label class="f"><span>Horizontal</span><div class="range"><input type="range" id="posX" min="0" max="100" step="0.5"><output id="posXOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Vertical</span><div class="range"><input type="range" id="posY" min="0" max="100" step="0.5"><output id="posYOut"></output></div></label>
+      <p class="hint">Também dá para arrastar o bloco direto no preview.</p>
+    </fieldset>
+
+    <fieldset style="border-bottom:0">
+      <legend>Frame de referência</legend>
+      <div class="file-row">
+        <button class="btn sm" type="button" id="pickBg">Carregar frame</button>
+        <button class="btn sm ghost" type="button" id="clearBg">Remover</button>
+        <span class="meta name" id="bgName">nenhum</span>
+      </div>
+      <input type="file" id="bgFile" accept="image/*" hidden>
+      <label class="check" style="margin-top:6px"><input type="checkbox" id="safeZones"> Mostrar áreas de interface</label>
+      <p class="hint">O frame serve só para posicionar — ele nunca entra no PNG exportado.</p>
+    </fieldset>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-bar">
+      <div class="seg" id="ratio" style="flex:none">
+        <button type="button" data-v="1080x1920">9:16</button>
+        <button type="button" data-v="1080x1350">4:5</button>
+        <button type="button" data-v="1080x1080">1:1</button>
+        <button type="button" data-v="1920x1080">16:9</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="meta" id="dims">—</span>
+      <button class="btn ghost sm" type="button" id="reset">Restaurar padrão</button>
+    </div>
+
+    <div class="canvas-wrap"><canvas id="preview"></canvas></div>
+
+    <div class="stage-foot">
+      <p class="note">Cada linha ganha uma caixa do tamanho exato do texto dela, e todas são pintadas num traço só — por isso não aparece linha de emenda onde uma encosta na outra.</p>
+      <button class="btn" type="button" id="copy">Copiar imagem</button>
+      <button class="btn primary" type="button" id="download">Baixar PNG</button>
+    </div>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('preview');
+  var ctx = cv.getContext('2d');
+
+  var DEFAULTS = {
+    text:'POV you bought the Tiktok VIRAL bodysuit dupe from Luxmery',
+    fontFamily:'Inter', fontWeight:'700', fontSize:56, tracking:0, uppercase:false,
+    textColor:'#000000', boxColor:'#FFFFFF', boxOpacity:100, shadow:0,
+    radius:8, padX:18, padY:8, lineGap:0,
+    maxWidthPct:82, align:'center',
+    posX:50, posY:50,
+    frameW:1080, frameH:1920,
+    safeZones:false
+  };
+
+  // Preferências de estilo ficam salvas; o texto e o frame não.
+  var PREFS = Shell.store('textbox');
+  var NO_PERSIST = {text:1, frameW:1, frameH:1, safeZones:1};
+
+  var S = Object.assign({}, DEFAULTS);
+  (function restore(){
+    var saved = PREFS.get(null);
+    if(!saved || typeof saved !== 'object') return;
+    Object.keys(DEFAULTS).forEach(function(k){
+      if(NO_PERSIST[k]) return;
+      if(saved[k] !== undefined && typeof saved[k] === typeof DEFAULTS[k]) S[k] = saved[k];
+    });
+  })();
+  function savePrefs(){
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function(k){ if(!NO_PERSIST[k]) out[k] = S[k]; });
+    PREFS.set(out);
+  }
+
+  var bgImage = null;
+
+  var PRESETS = {
+    'TikTok branco': {boxColor:'#FFFFFF', textColor:'#000000', boxOpacity:100, radius:8, padX:18, padY:8, fontFamily:'Inter', fontWeight:'700'},
+    'Reels preto':   {boxColor:'#000000', textColor:'#FFFFFF', boxOpacity:100, radius:8, padX:20, padY:10, fontFamily:'Inter', fontWeight:'600'},
+    'Pílula':        {radius:60, padX:30, padY:12, lineGap:4},
+    'Sem caixa':     {boxOpacity:0, textColor:'#FFFFFF', shadow:26},
+    'Manchete':      {fontFamily:'Anton', fontWeight:'400', uppercase:true, tracking:0.5, padX:22, padY:10}
+  };
+
+  /* =================== medição e layout =================== */
+
+  function fontSpec(){
+    return S.fontWeight + ' ' + S.fontSize + 'px "' + S.fontFamily + '", sans-serif';
+  }
+  function displayText(){
+    return S.uppercase ? S.text.toLocaleUpperCase('pt-BR') : S.text;
+  }
+
+  // Com tracking, o texto é desenhado caractere a caractere; a medição precisa
+  // somar do mesmo jeito, senão a largura da caixa não bate com o texto dentro
+  // dela (a soma dos caracteres difere de measureText da string inteira por
+  // causa de kerning e ligaduras).
+  function measure(c, str){
+    if(!str) return 0;
+    if(!S.tracking) return c.measureText(str).width;
+    var chars = Array.from(str), w = 0, i;
+    for(i = 0; i < chars.length; i++) w += c.measureText(chars[i]).width + S.tracking;
+    return w - S.tracking;
+  }
+
+  function wrapParagraph(c, paragraph, maxW){
+    var words = paragraph.split(/\s+/).filter(function(w){ return w.length; });
+    if(!words.length) return [];
+    var lines = [], current = words[0], i, test;
+    for(i = 1; i < words.length; i++){
+      test = current + ' ' + words[i];
+      if(measure(c, test) <= maxW) current = test;
+      else { lines.push(current); current = words[i]; }
+    }
+    lines.push(current);
+    return lines;
+  }
+
+  function computeLines(c, frameW){
+    c.font = fontSpec();
+    var maxW = frameW * (S.maxWidthPct / 100);
+    var paragraphs = displayText().split('\n');
+    var lines = [];
+    paragraphs.forEach(function(p){
+      var t = p.trim();
+      if(!t){ return; }
+      lines = lines.concat(wrapParagraph(c, t, maxW));
+    });
+    return lines.length ? lines : [''];
+  }
+
+  function layout(c, lines){
+    var lineH = S.fontSize * 1.22;
+    var boxes = lines.map(function(line){
+      return { line:line, w:measure(c, line) + S.padX * 2, h:lineH + S.padY * 2 };
+    });
+    var blockW = boxes.reduce(function(m, b){ return Math.max(m, b.w); }, 0);
+    var blockH = boxes.reduce(function(s, b){ return s + b.h; }, 0) + S.lineGap * (boxes.length - 1);
+    var y = 0;
+    boxes.forEach(function(b){ b.y = y; y += b.h + S.lineGap; });
+    return { boxes:boxes, blockW:blockW, blockH:blockH };
+  }
+
+  /* =================== desenho =================== */
+
+  function rgba(hex, opacityPct){
+    var h = String(hex).replace('#','');
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var r = parseInt(h.slice(0,2),16) || 0,
+        g = parseInt(h.slice(2,4),16) || 0,
+        b = parseInt(h.slice(4,6),16) || 0;
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + (opacityPct/100) + ')';
+  }
+
+  function addRoundRect(c, x, y, w, h, r){
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y,     x + w, y + h, r);
+    c.arcTo(x + w, y + h, x,     y + h, r);
+    c.arcTo(x,     y + h, x,     y,     r);
+    c.arcTo(x,     y,     x + w, y,     r);
+    c.closePath();
+  }
+
+  // fillText não aplica letter-spacing de forma consistente entre navegadores,
+  // então cada caractere é posicionado manualmente.
+  function drawTracked(c, str, x, y){
+    if(!S.tracking){ c.fillText(str, x, y); return; }
+    var chars = Array.from(str), cx = x, i;
+    for(i = 0; i < chars.length; i++){
+      c.fillText(chars[i], cx, y);
+      cx += c.measureText(chars[i]).width + S.tracking;
+    }
+  }
+
+  function drawSafeZones(c, W, H){
+    // Faixas aproximadas onde a interface do app costuma cobrir o vídeo.
+    // Servem de guia visual; ajuste fino sempre vale conferir no aparelho.
+    var zones = [
+      {x:0,     y:0,       w:1,    h:0.13, label:'topo'},
+      {x:0,     y:0.82,    w:1,    h:0.18, label:'legenda / perfil'},
+      {x:0.80,  y:0.28,    w:0.20, h:0.52, label:'botões laterais'}
+    ];
+    c.save();
+    c.fillStyle = 'rgba(240,90,90,.16)';
+    c.strokeStyle = 'rgba(240,90,90,.55)';
+    c.lineWidth = Math.max(1, W * 0.002);
+    c.setLineDash([W * 0.012, W * 0.012]);
+    zones.forEach(function(z){
+      var x = z.x * W, y = z.y * H, w = z.w * W, h = z.h * H;
+      c.fillRect(x, y, w, h);
+      c.strokeRect(x, y, w, h);
+    });
+    c.restore();
+  }
+
+  // drawBg/drawGuides ficam desligados na exportação — o PNG sai só com o texto.
+  function drawScene(c, W, H, opts){
+    opts = opts || {};
+    c.clearRect(0, 0, W, H);
+
+    if(opts.chrome && bgImage){
+      var k = Math.max(W / bgImage.width, H / bgImage.height);
+      var dw = bgImage.width * k, dh = bgImage.height * k;
+      c.drawImage(bgImage, (W - dw)/2, (H - dh)/2, dw, dh);
+    }
+    if(opts.chrome && S.safeZones) drawSafeZones(c, W, H);
+
+    c.font = fontSpec();
+    c.textBaseline = 'middle';
+    c.textAlign = 'left';
+
+    var lines = computeLines(c, W);
+    var L = layout(c, lines);
+    var cx = W * (S.posX / 100);
+    var top = H * (S.posY / 100) - L.blockH / 2;
+
+    L.boxes.forEach(function(b){
+      if(S.align === 'center')     b.x = cx - b.w / 2;
+      else if(S.align === 'left')  b.x = cx - L.blockW / 2;
+      else                         b.x = cx + L.blockW / 2 - b.w;
+      b.py = top + b.y;
+    });
+
+    // Todas as caixas entram num path só e recebem UM fill. Pintar caixa por
+    // caixa deixa uma linha fina de emenda onde duas se encostam, porque cada
+    // fill faz o próprio antialiasing contra o fundo.
+    if(S.boxOpacity > 0){
+      c.save();
+      if(S.shadow > 0){
+        c.shadowColor = 'rgba(0,0,0,.5)';
+        c.shadowBlur = S.shadow;
+        c.shadowOffsetY = S.shadow * 0.25;
+      }
+      c.beginPath();
+      L.boxes.forEach(function(b){ addRoundRect(c, b.x, b.py, b.w, b.h, S.radius); });
+      c.fillStyle = rgba(S.boxColor, S.boxOpacity);
+      c.fill();
+      c.restore();
+    }
+
+    c.save();
+    // Sem caixa, a sombra vai no texto para ele não sumir sobre o vídeo.
+    if(S.shadow > 0 && S.boxOpacity === 0){
+      c.shadowColor = 'rgba(0,0,0,.6)';
+      c.shadowBlur = S.shadow;
+      c.shadowOffsetY = S.shadow * 0.2;
+    }
+    c.fillStyle = S.textColor;
+    L.boxes.forEach(function(b){
+      drawTracked(c, b.line, b.x + S.padX, b.py + b.h / 2 + S.fontSize * 0.04);
+    });
+    c.restore();
+
+    return { lines:lines.length, blockW:L.blockW, blockH:L.blockH };
+  }
+
+  /* =================== render =================== */
+
+  var pending = false;
+  function render(){
+    if(pending) return;
+    pending = true;
+    requestAnimationFrame(function(){
+      pending = false;
+      if(cv.width !== S.frameW || cv.height !== S.frameH){
+        cv.width = S.frameW;
+        cv.height = S.frameH;
+      }
+      var info = drawScene(ctx, S.frameW, S.frameH, {chrome:true});
+      $('dims').textContent = S.frameW + ' × ' + S.frameH + ' px  ·  ' +
+        info.lines + (info.lines === 1 ? ' linha' : ' linhas');
+      queueSave();
+    });
+  }
+
+  var saveTimer = null;
+  function queueSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePrefs, 400);
+  }
+
+  function exportCanvas(){
+    var off = document.createElement('canvas');
+    off.width = S.frameW;
+    off.height = S.frameH;
+    drawScene(off.getContext('2d'), S.frameW, S.frameH, {chrome:false});
+    return off;
+  }
+
+  /* =================== controles =================== */
+
+  var RANGES = [
+    ['fontSize','fontSize',' px'], ['tracking','tracking',' px'],
+    ['boxOpacity','boxOpacity','%'], ['shadow','shadow',' px'],
+    ['radius','radius',' px'], ['padX','padX',' px'], ['padY','padY',' px'],
+    ['lineGap','lineGap',' px'], ['maxWidthPct','maxWidthPct','%'],
+    ['posX','posX','%'], ['posY','posY','%']
+  ];
+
+  RANGES.forEach(function(r){
+    var el = $(r[0]), out = $(r[0] + 'Out');
+    el.addEventListener('input', function(){
+      S[r[1]] = parseFloat(el.value);
+      out.textContent = el.value + r[2];
+      render();
+    });
+  });
+
+  function syncControls(){
+    $('text').value = S.text;
+    $('fontFamily').value = S.fontFamily;
+    $('fontWeight').value = S.fontWeight;
+    $('uppercase').checked = S.uppercase;
+    $('textColor').value = S.textColor;
+    $('boxColor').value = S.boxColor;
+    $('safeZones').checked = S.safeZones;
+    RANGES.forEach(function(r){
+      $(r[0]).value = S[r[1]];
+      $(r[0] + 'Out').textContent = S[r[1]] + r[2];
+    });
+    segSync('align', S.align);
+    segSync('ratio', S.frameW + 'x' + S.frameH);
+  }
+
+  function segSync(id, value){
+    Array.prototype.forEach.call($(id).querySelectorAll('button'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.v === value));
+    });
+  }
+  function bindSeg(id, onPick){
+    $(id).addEventListener('click', function(e){
+      var b = e.target.closest('button');
+      if(!b || !b.dataset.v) return;
+      segSync(id, b.dataset.v);
+      onPick(b.dataset.v);
+      render();
+    });
+  }
+
+  $('text').addEventListener('input', function(){ S.text = this.value; render(); });
+  $('fontFamily').addEventListener('change', function(){ S.fontFamily = this.value; render(); });
+  $('fontWeight').addEventListener('change', function(){ S.fontWeight = this.value; render(); });
+  $('uppercase').addEventListener('change', function(){ S.uppercase = this.checked; render(); });
+  $('textColor').addEventListener('input', function(){ S.textColor = this.value; render(); });
+  $('boxColor').addEventListener('input', function(){ S.boxColor = this.value; render(); });
+  $('safeZones').addEventListener('change', function(){ S.safeZones = this.checked; render(); });
+
+  bindSeg('align', function(v){ S.align = v; });
+  bindSeg('ratio', function(v){
+    var p = v.split('x');
+    S.frameW = parseInt(p[0], 10);
+    S.frameH = parseInt(p[1], 10);
+  });
+
+  /* ---------- atalhos ---------- */
+  Object.keys(PRESETS).forEach(function(name){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = name;
+    b.addEventListener('click', function(){
+      Object.assign(S, PRESETS[name]);
+      syncControls();
+      render();
+    });
+    $('presets').appendChild(b);
+  });
+
+  /* ---------- frame de referência ---------- */
+  function setBg(file){
+    Shell.loadImageFile(file).then(function(img){
+      bgImage = img;
+      $('bgName').textContent = file.name.length > 22 ? file.name.slice(0,20) + '…' : file.name;
+      render();
+    }).catch(function(){ Shell.toast('Não deu para abrir essa imagem.'); });
+  }
+  $('pickBg').addEventListener('click', function(){ $('bgFile').click(); });
+  $('bgFile').addEventListener('change', function(){
+    if(this.files[0]) setBg(this.files[0]);
+    this.value = '';
+  });
+  $('clearBg').addEventListener('click', function(){
+    bgImage = null;
+    $('bgName').textContent = 'nenhum';
+    render();
+  });
+  window.addEventListener('paste', function(e){
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for(var i = 0; i < items.length; i++){
+      if(items[i].type.indexOf('image/') === 0){ setBg(items[i].getAsFile()); break; }
+    }
+  });
+
+  /* ---------- arrastar o bloco no preview ---------- */
+  (function(){
+    var dragging = false;
+    function place(e){
+      var rect = cv.getBoundingClientRect();
+      if(!rect.width || !rect.height) return;
+      var x = (e.clientX - rect.left) / rect.width;
+      var y = (e.clientY - rect.top) / rect.height;
+      S.posX = Math.round(Math.min(1, Math.max(0, x)) * 200) / 2;
+      S.posY = Math.round(Math.min(1, Math.max(0, y)) * 200) / 2;
+      $('posX').value = S.posX; $('posXOut').textContent = S.posX + '%';
+      $('posY').value = S.posY; $('posYOut').textContent = S.posY + '%';
+      render();
+    }
+    cv.addEventListener('pointerdown', function(e){
+      dragging = true;
+      cv.setPointerCapture(e.pointerId);
+      place(e);
+    });
+    cv.addEventListener('pointermove', function(e){ if(dragging) place(e); });
+    cv.addEventListener('pointerup', function(e){
+      dragging = false;
+      if(cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+    });
+    cv.addEventListener('pointercancel', function(){ dragging = false; });
+    cv.style.cursor = 'grab';
+  })();
+
+  /* ---------- exportar ---------- */
+  $('download').addEventListener('click', function(){
+    Shell.canvasBlob(exportCanvas()).then(function(b){
+      Shell.saveBlob(b, 'textbox-' + S.frameW + 'x' + S.frameH + '.png');
+      Shell.toast('PNG salvo.');
+    }).catch(function(){ Shell.toast('Não foi possível gerar o PNG.'); });
+  });
+
+  $('copy').addEventListener('click', function(){
+    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
+      Shell.toast('Este navegador não copia imagens. Use “Baixar PNG”.');
+      return;
+    }
+    Shell.canvasBlob(exportCanvas()).then(function(b){
+      return navigator.clipboard.write([new ClipboardItem({'image/png': b})]);
+    }).then(function(){ Shell.toast('Imagem copiada.'); })
+      .catch(function(){ Shell.toast('O navegador bloqueou a cópia. Use “Baixar PNG”.'); });
+  });
+
+  $('reset').addEventListener('click', function(){
+    PREFS.clear();
+    S = Object.assign({}, DEFAULTS);
+    bgImage = null;
+    $('bgName').textContent = 'nenhum';
+    syncControls();
+    render();
+    Shell.toast('Campos restaurados.');
+  });
+
+  /* ---------- boot ---------- */
+  syncControls();
+  render();
+  // As fontes da web chegam depois do primeiro frame; sem isso a primeira
+  // medição sai com a fonte de fallback e a quebra de linha muda sozinha.
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Áreas seguras — Toolbench</title>
+<meta name="description" content="Confere se a legenda cai atrás da interface do TikTok, Reels ou Shorts antes de exportar o vídeo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/ui.css">
+<style>
+  .app{display:grid;grid-template-columns:330px 1fr;height:calc(100dvh - var(--topbar-h));min-height:0}
+
+  .panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;overscroll-behavior:contain}
+  .brand{
+    display:flex;align-items:center;gap:11px;padding:15px 20px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3;
+    background:color-mix(in srgb, var(--panel) 90%, transparent);backdrop-filter:blur(14px);
+  }
+  .brand b{font-family:var(--disp);font-size:14px;font-weight:600;letter-spacing:-.015em}
+  .brand span{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em}
+
+  fieldset{border:0;margin:0;padding:18px 20px 20px;border-bottom:1px solid var(--line-soft)}
+  legend{
+    padding:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px;
+  }
+  label.f{display:block;margin-bottom:14px}
+  label.f:last-child{margin-bottom:0}
+  label.f > span{display:block;font-size:11.5px;font-weight:500;color:var(--ink-dim);margin-bottom:6px}
+
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:3px;box-shadow:var(--shadow-1)}
+  .seg button{
+    flex:1;background:transparent;border:0;color:var(--ink-dim);font:inherit;font-size:12px;
+    font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:background .14s,color .14s;
+  }
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed=true]{
+    background:linear-gradient(#2E3644,#262D39);color:#fff;
+    box-shadow:0 1px 2px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.05) inset;
+  }
+
+  .range{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;appearance:none;-webkit-appearance:none;height:4px;border-radius:99px;background:#2B3240;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;border:0;
+    cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.55),0 0 0 4px var(--accent-soft);
+  }
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer}
+  .range output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:46px;text-align:right}
+
+  .check{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;font-size:13px;color:var(--ink-dim);transition:color .14s}
+  .check:hover{color:var(--ink)}
+  .check input{
+    appearance:none;width:36px;height:20px;border-radius:20px;background:#2B3240;position:relative;
+    cursor:pointer;flex:none;transition:background .18s;box-shadow:0 1px 2px rgba(0,0,0,.35) inset;
+  }
+  .check input::after{
+    content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#7E8697;transition:.18s cubic-bezier(.3,.7,.3,1);box-shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+  .check input:checked{background:var(--accent-soft);box-shadow:0 0 0 1px rgba(240,180,41,.35) inset}
+  .check input:checked::after{left:18px;background:var(--accent);box-shadow:0 1px 6px rgba(240,180,41,.5)}
+
+  .file-row{display:flex;gap:8px;align-items:center}
+  .file-row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hint{font-size:11px;color:var(--ink-faint);line-height:1.55;margin:8px 0 0}
+
+  .zone-list{display:flex;flex-direction:column;gap:2px}
+  .zone-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12.5px;color:var(--ink-dim)}
+  .zone-row .sw{width:11px;height:11px;border-radius:3px;flex:none}
+  .zone-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .zone-row .pc{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint)}
+
+  /* ---------- palco ---------- */
+  .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
+  .stage-bar{display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
+  .stage-bar .spacer{flex:1}
+  .meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+  .canvas-wrap{
+    flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:24px;
+    background:repeating-conic-gradient(#191D25 0% 25%,#14181F 0% 50%) 50% / 22px 22px;
+  }
+  #preview{
+    display:block;max-width:100%;max-height:100%;width:auto;height:auto;
+    box-shadow:0 0 0 1px rgba(255,255,255,.07),0 22px 64px rgba(0,0,0,.6);border-radius:4px;
+  }
+  .stage-foot{display:flex;align-items:center;gap:14px;padding:14px 20px;border-top:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
+  .stage-foot .note{font-size:12px;color:var(--ink-faint);flex:1;min-width:220px;line-height:1.5}
+
+  @media (max-width:980px){
+    .app{grid-template-columns:1fr;height:auto}
+    .panel{order:2;border-right:0;border-top:1px solid var(--line);overflow:visible}
+    .stage{order:1}
+    .canvas-wrap{min-height:52vh}
+  }
+</style>
+</head>
+<body data-tool="safezone">
+
+<div id="topbar"></div>
+<script src="../assets/shell.js"></script>
+
+<div class="app">
+
+  <aside class="panel">
+    <div class="brand"><div><b>Áreas seguras</b><br><span>tiktok · reels · shorts</span></div></div>
+
+    <fieldset>
+      <legend>Frame do vídeo</legend>
+      <div class="file-row">
+        <button class="btn sm" type="button" id="pickBg">Carregar frame</button>
+        <button class="btn sm ghost" type="button" id="clearBg">Remover</button>
+        <span class="meta name" id="bgName">nenhum</span>
+      </div>
+      <input type="file" id="bgFile" accept="image/*" hidden>
+      <p class="hint">Arraste aqui, clique no botão ou cole com Ctrl+V.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Plataforma</legend>
+      <div class="seg" id="platform">
+        <button type="button" data-v="tiktok">TikTok</button>
+        <button type="button" data-v="reels">Reels</button>
+        <button type="button" data-v="shorts">Shorts</button>
+      </div>
+      <p class="hint" id="platformNote"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>O que a interface cobre</legend>
+      <div class="zone-list" id="zoneList"></div>
+      <p class="hint">Medidas aproximadas, em porcentagem da altura e da largura do quadro. A interface muda entre versões do app e entre aparelhos — use como guia e confirme no celular antes de subir.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Margem extra de segurança</legend>
+      <label class="f" style="margin:0"><span>Folga além das faixas</span><div class="range"><input type="range" id="margin" min="0" max="8" step="0.5" value="1.5"><output id="marginOut">1.5%</output></div></label>
+      <p class="hint">Empurra as faixas para dentro, para o texto não terminar colado no limite.</p>
+    </fieldset>
+
+    <fieldset style="border-bottom:0">
+      <legend>Exibição</legend>
+      <label class="check"><input type="checkbox" id="showLabels" checked> Nomear as faixas</label>
+      <label class="check"><input type="checkbox" id="showGrid"> Grade de terços</label>
+      <label class="check"><input type="checkbox" id="showCenter"> Eixo central</label>
+      <label class="f" style="margin-top:12px"><span>Opacidade das faixas</span><div class="range"><input type="range" id="opacity" min="5" max="80" step="1" value="26"><output id="opacityOut">26%</output></div></label>
+    </fieldset>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-bar">
+      <div class="seg" id="ratio" style="flex:none">
+        <button type="button" data-v="1080x1920">9:16</button>
+        <button type="button" data-v="1080x1350">4:5</button>
+        <button type="button" data-v="1080x1080">1:1</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="meta" id="dims">—</span>
+    </div>
+
+    <div class="canvas-wrap"><canvas id="preview"></canvas></div>
+
+    <div class="stage-foot">
+      <p class="note" id="safeInfo">A área livre é o retângulo sem faixa vermelha — é onde a legenda pode ficar sem risco de sumir atrás da interface.</p>
+      <button class="btn" type="button" id="copyGuide">Copiar guia</button>
+      <button class="btn primary" type="button" id="download">Baixar guia PNG</button>
+    </div>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('preview');
+  var ctx = cv.getContext('2d');
+
+  /* ------------------------------------------------------------------
+     Faixas de interface, em fração do quadro (x, y, w, h a partir do
+     canto superior esquerdo).
+
+     São APROXIMAÇÕES medidas sobre capturas de tela dos apps em aparelho
+     alto (proporção ~19.5:9). Cada app muda a interface com frequência e
+     o recorte varia com o tamanho da tela, então isto é guia de trabalho,
+     não especificação oficial. Para ajustar, mexa nos números aqui.
+     ------------------------------------------------------------------ */
+  var PLATFORMS = {
+    tiktok: {
+      nota: 'Lateral direita alta por causa da pilha de botões; rodapé grande com legenda, perfil e faixa de áudio.',
+      zonas: [
+        {nome:'Topo (busca e abas)',        x:0,    y:0,    w:1,    h:0.09,  cor:'#FF5A72'},
+        {nome:'Botões laterais',            x:0.80, y:0.34, w:0.20, h:0.44,  cor:'#FF8A4C'},
+        {nome:'Legenda e perfil',           x:0,    y:0.78, w:0.82, h:0.16,  cor:'#FF5A72'},
+        {nome:'Barra de navegação',         x:0,    y:0.94, w:1,    h:0.06,  cor:'#FF5A72'}
+      ]
+    },
+    reels: {
+      nota: 'Rodapé um pouco mais alto que o do TikTok; a barra de progresso encosta na navegação.',
+      zonas: [
+        {nome:'Topo (título e câmera)',     x:0,    y:0,    w:1,    h:0.08,  cor:'#FF5A72'},
+        {nome:'Botões laterais',            x:0.82, y:0.38, w:0.18, h:0.40,  cor:'#FF8A4C'},
+        {nome:'Legenda, áudio e perfil',    x:0,    y:0.74, w:0.84, h:0.20,  cor:'#FF5A72'},
+        {nome:'Barra de navegação',         x:0,    y:0.94, w:1,    h:0.06,  cor:'#FF5A72'}
+      ]
+    },
+    shorts: {
+      nota: 'Rodapé menor, mas a linha de inscrição e o título ocupam a base esquerda.',
+      zonas: [
+        {nome:'Topo (controles)',           x:0,    y:0,    w:1,    h:0.07,  cor:'#FF5A72'},
+        {nome:'Botões laterais',            x:0.83, y:0.36, w:0.17, h:0.42,  cor:'#FF8A4C'},
+        {nome:'Título e canal',             x:0,    y:0.76, w:0.83, h:0.16,  cor:'#FF5A72'},
+        {nome:'Barra de navegação',         x:0,    y:0.92, w:1,    h:0.08,  cor:'#FF5A72'}
+      ]
+    }
+  };
+
+  var S = {
+    platform:'tiktok', frameW:1080, frameH:1920,
+    margin:1.5, opacity:26,
+    showLabels:true, showGrid:false, showCenter:false
+  };
+  var bgImage = null;
+
+  /* ---------- geometria ---------- */
+
+  // Faixas já com a folga extra aplicada (empurrando para dentro do quadro).
+  function zones(){
+    var m = S.margin / 100;
+    return PLATFORMS[S.platform].zonas.map(function(z){
+      var out = {nome:z.nome, cor:z.cor, x:z.x, y:z.y, w:z.w, h:z.h};
+      // A folga cresce a faixa para o lado do centro do quadro.
+      if(z.y <= 0.001)            out.h = z.h + m;                        // encostada no topo
+      else if(z.y + z.h >= 0.999){ out.y = z.y - m; out.h = z.h + m; }    // encostada na base
+      if(z.x <= 0.001 && z.w < 0.999) out.w = z.w + m;                    // encostada à esquerda
+      else if(z.x + z.w >= 0.999 && z.w < 0.999){ out.x = z.x - m; out.w = z.w + m; }
+      return out;
+    });
+  }
+
+  // Retângulo livre: parte das bordas para dentro até escapar das faixas que
+  // atravessam o quadro inteiro (topo, base) e das colunas laterais.
+  function safeRect(zs){
+    var top = 0, bottom = 1, left = 0, right = 1;
+    zs.forEach(function(z){
+      var full = z.w >= 0.98;            // faixa horizontal de ponta a ponta
+      var tall = z.h >= 0.30 && z.w < 0.5; // coluna de botões
+      if(full){
+        if(z.y <= 0.5) top = Math.max(top, z.y + z.h);
+        else bottom = Math.min(bottom, z.y);
+      } else if(tall){
+        if(z.x > 0.5) right = Math.min(right, z.x);
+        else left = Math.max(left, z.x + z.w);
+      } else {
+        // blocos de legenda: cortam por baixo
+        if(z.y > 0.5) bottom = Math.min(bottom, z.y);
+      }
+    });
+    return {x:left, y:top, w:Math.max(0, right - left), h:Math.max(0, bottom - top)};
+  }
+
+  /* ---------- desenho ---------- */
+
+  function draw(c, W, H, opts){
+    opts = opts || {};
+    c.clearRect(0, 0, W, H);
+
+    if(bgImage){
+      var k = Math.max(W / bgImage.width, H / bgImage.height);
+      var dw = bgImage.width * k, dh = bgImage.height * k;
+      c.drawImage(bgImage, (W - dw)/2, (H - dh)/2, dw, dh);
+    } else if(opts.solidBase){
+      c.fillStyle = '#101216';
+      c.fillRect(0, 0, W, H);
+    }
+
+    var zs = zones();
+    var unit = Math.min(W, H);
+
+    // faixas
+    zs.forEach(function(z){
+      c.save();
+      c.globalAlpha = S.opacity / 100;
+      c.fillStyle = z.cor;
+      c.fillRect(z.x * W, z.y * H, z.w * W, z.h * H);
+      c.restore();
+
+      c.save();
+      c.strokeStyle = z.cor;
+      c.globalAlpha = 0.85;
+      c.lineWidth = Math.max(1, unit * 0.003);
+      c.setLineDash([unit * 0.018, unit * 0.014]);
+      c.strokeRect(z.x * W, z.y * H, z.w * W, z.h * H);
+      c.restore();
+    });
+
+    // área livre
+    var safe = safeRect(zs);
+    c.save();
+    c.strokeStyle = '#5FD08A';
+    c.lineWidth = Math.max(2, unit * 0.005);
+    c.setLineDash([]);
+    c.strokeRect(safe.x * W, safe.y * H, safe.w * W, safe.h * H);
+    c.restore();
+
+    if(S.showGrid){
+      c.save();
+      c.strokeStyle = 'rgba(255,255,255,.30)';
+      c.lineWidth = Math.max(1, unit * 0.002);
+      [1/3, 2/3].forEach(function(t){
+        c.beginPath(); c.moveTo(t * W, 0); c.lineTo(t * W, H); c.stroke();
+        c.beginPath(); c.moveTo(0, t * H); c.lineTo(W, t * H); c.stroke();
+      });
+      c.restore();
+    }
+
+    if(S.showCenter){
+      c.save();
+      c.strokeStyle = 'rgba(255,255,255,.45)';
+      c.lineWidth = Math.max(1, unit * 0.002);
+      c.setLineDash([unit * 0.02, unit * 0.02]);
+      c.beginPath(); c.moveTo(W/2, 0); c.lineTo(W/2, H); c.stroke();
+      c.beginPath(); c.moveTo(0, H/2); c.lineTo(W, H/2); c.stroke();
+      c.restore();
+    }
+
+    if(S.showLabels){
+      var fs = Math.max(11, unit * 0.026);
+      c.save();
+      c.font = '600 ' + fs + 'px Inter, sans-serif';
+      c.textBaseline = 'top';
+      zs.forEach(function(z){
+        var label = z.nome;
+        var zw = z.w * W;
+        // Em faixas estreitas (a coluna de botões) a etiqueta no tamanho normal
+        // vazava para fora e parecia estar marcando a área livre ao lado.
+        // Aqui ela encolhe até caber dentro da própria faixa.
+        var lfs = fs;
+        c.font = '600 ' + lfs + 'px Inter, sans-serif';
+        var tw = c.measureText(label).width;
+        if(tw + lfs > zw){
+          lfs = Math.max(fs * 0.58, lfs * (zw - fs * 0.6) / Math.max(1, tw + lfs));
+          c.font = '600 ' + lfs + 'px Inter, sans-serif';
+          tw = c.measureText(label).width;
+        }
+        var px = lfs * 0.5, py = lfs * 0.34;
+        var bw = tw + px * 2, bh = lfs + py * 2;
+        var bx = z.x * W + lfs * 0.4;
+        var by = z.y * H + lfs * 0.4;
+        // etiqueta de faixa colada na base sobe para dentro dela
+        if(z.y + z.h >= 0.999) by = (z.y + z.h) * H - bh - lfs * 0.4;
+        // nunca deixa a etiqueta passar da borda direita da faixa nem do quadro
+        bx = Math.min(bx, (z.x + z.w) * W - bw - lfs * 0.3, W - bw - lfs * 0.3);
+        bx = Math.max(bx, lfs * 0.3);
+
+        c.fillStyle = 'rgba(12,14,18,.82)';
+        c.fillRect(bx, by, bw, bh);
+        c.fillStyle = '#FFFFFF';
+        c.fillText(label, bx + px, by + py);
+      });
+      c.font = '600 ' + fs + 'px Inter, sans-serif';
+
+      var sl = 'área livre';
+      var slw = c.measureText(sl).width;
+      c.fillStyle = 'rgba(12,14,18,.82)';
+      c.fillRect(safe.x * W + fs * 0.4, (safe.y + safe.h) * H - fs * 1.9, slw + fs, fs * 1.5);
+      c.fillStyle = '#5FD08A';
+      c.fillText(sl, safe.x * W + fs * 0.9, (safe.y + safe.h) * H - fs * 1.62);
+      c.restore();
+    }
+
+    return safe;
+  }
+
+  /* ---------- render ---------- */
+
+  var pending = false;
+  function render(){
+    if(pending) return;
+    pending = true;
+    requestAnimationFrame(function(){
+      pending = false;
+      if(cv.width !== S.frameW || cv.height !== S.frameH){
+        cv.width = S.frameW;
+        cv.height = S.frameH;
+      }
+      var safe = draw(ctx, S.frameW, S.frameH, {solidBase:true});
+      $('dims').textContent = S.frameW + ' × ' + S.frameH + ' px';
+      $('safeInfo').textContent =
+        'Área livre: ' + Math.round(safe.w * S.frameW) + ' × ' + Math.round(safe.h * S.frameH) +
+        ' px, começando a ' + Math.round(safe.y * S.frameH) + ' px do topo. ' +
+        'É onde a legenda cabe sem sumir atrás da interface.';
+    });
+  }
+
+  function exportCanvas(){
+    var off = document.createElement('canvas');
+    off.width = S.frameW;
+    off.height = S.frameH;
+    draw(off.getContext('2d'), S.frameW, S.frameH, {solidBase:!bgImage});
+    return off;
+  }
+
+  /* ---------- lista de faixas ---------- */
+  function renderZoneList(){
+    var host = $('zoneList');
+    host.textContent = '';
+    PLATFORMS[S.platform].zonas.forEach(function(z){
+      var row = document.createElement('div');
+      row.className = 'zone-row';
+
+      var sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = z.cor;
+
+      var nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = z.nome;
+
+      var pc = document.createElement('span');
+      pc.className = 'pc';
+      pc.textContent = z.w >= 0.98
+        ? Math.round(z.h * 100) + '% alt'
+        : Math.round(z.w * 100) + '×' + Math.round(z.h * 100) + '%';
+
+      row.append(sw, nm, pc);
+      host.appendChild(row);
+    });
+    $('platformNote').textContent = PLATFORMS[S.platform].nota;
+  }
+
+  /* ---------- controles ---------- */
+  function segSync(id, value){
+    Array.prototype.forEach.call($(id).querySelectorAll('button'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.v === value));
+    });
+  }
+  function bindSeg(id, onPick){
+    $(id).addEventListener('click', function(e){
+      var b = e.target.closest('button');
+      if(!b || !b.dataset.v) return;
+      segSync(id, b.dataset.v);
+      onPick(b.dataset.v);
+      render();
+    });
+  }
+
+  bindSeg('platform', function(v){ S.platform = v; renderZoneList(); });
+  bindSeg('ratio', function(v){
+    var p = v.split('x');
+    S.frameW = parseInt(p[0], 10);
+    S.frameH = parseInt(p[1], 10);
+  });
+
+  [['margin','margin','%'], ['opacity','opacity','%']].forEach(function(r){
+    var el = $(r[0]), out = $(r[0] + 'Out');
+    el.addEventListener('input', function(){
+      S[r[1]] = parseFloat(el.value);
+      out.textContent = el.value + r[2];
+      render();
+    });
+  });
+
+  ['showLabels','showGrid','showCenter'].forEach(function(k){
+    $(k).addEventListener('change', function(){ S[k] = this.checked; render(); });
+  });
+
+  /* ---------- frame ---------- */
+  function setBg(file){
+    Shell.loadImageFile(file).then(function(img){
+      bgImage = img;
+      $('bgName').textContent = file.name.length > 20 ? file.name.slice(0,18) + '…' : file.name;
+      render();
+    }).catch(function(){ Shell.toast('Não deu para abrir essa imagem.'); });
+  }
+  $('pickBg').addEventListener('click', function(){ $('bgFile').click(); });
+  $('bgFile').addEventListener('change', function(){
+    if(this.files[0]) setBg(this.files[0]);
+    this.value = '';
+  });
+  $('clearBg').addEventListener('click', function(){
+    bgImage = null;
+    $('bgName').textContent = 'nenhum';
+    render();
+  });
+  window.addEventListener('paste', function(e){
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for(var i = 0; i < items.length; i++){
+      if(items[i].type.indexOf('image/') === 0){ setBg(items[i].getAsFile()); break; }
+    }
+  });
+  ['dragenter','dragover'].forEach(function(ev){
+    document.addEventListener(ev, function(e){ e.preventDefault(); });
+  });
+  document.addEventListener('drop', function(e){
+    e.preventDefault();
+    if(e.dataTransfer && e.dataTransfer.files[0]) setBg(e.dataTransfer.files[0]);
+  });
+
+  /* ---------- exportar ---------- */
+  $('download').addEventListener('click', function(){
+    Shell.canvasBlob(exportCanvas()).then(function(b){
+      Shell.saveBlob(b, 'areas-seguras-' + S.platform + '-' + S.frameW + 'x' + S.frameH + '.png');
+      Shell.toast('Guia salvo.');
+    }).catch(function(){ Shell.toast('Não foi possível gerar o PNG.'); });
+  });
+
+  $('copyGuide').addEventListener('click', function(){
+    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
+      Shell.toast('Este navegador não copia imagens. Use “Baixar guia PNG”.');
+      return;
+    }
+    Shell.canvasBlob(exportCanvas()).then(function(b){
+      return navigator.clipboard.write([new ClipboardItem({'image/png': b})]);
+    }).then(function(){ Shell.toast('Guia copiado.'); })
+      .catch(function(){ Shell.toast('O navegador bloqueou a cópia. Use o botão de baixar.'); });
+  });
+
+  /* ---------- boot ---------- */
+  segSync('platform', S.platform);
+  segSync('ratio', S.frameW + 'x' + S.frameH);
+  renderZoneList();
+  render();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>

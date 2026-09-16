@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luma Grade — Toolbench</title>
+<meta name="description" content="Transforma um frame e uma imagem de referência em LUT .cube sob medida para Premiere, DaVinci, CapCut e Final Cut.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/ui.css">
+<style>
+
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  .tool-head{padding:26px 0 4px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .tool-head h1{font-family:var(--disp);font-weight:700;font-size:22px;letter-spacing:-.02em;margin:0}
+  .tool-head p{color:var(--ink-dim);font-size:13px;margin:0;max-width:62ch}
+
+
+
+  /* ---------- ferramenta ---------- */
+  .tool{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;padding:20px 0 40px}
+  @media(max-width:920px){.tool{grid-template-columns:1fr}}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+
+  /* uploads */
+  .uploads{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px}
+  @media(max-width:520px){.uploads{grid-template-columns:1fr}}
+  .drop{position:relative;border:1px dashed var(--line-strong);border-radius:10px;min-height:118px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    padding:14px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;overflow:hidden}
+  .drop:hover,.drop.over{border-color:var(--text);background:var(--panel-2)}
+  .drop .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}
+  .drop .hint{font-size:12.5px;color:var(--dim)}
+  .drop .arrow{width:26px;height:26px;border:1px solid var(--line-strong);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+  .drop img.thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.92}
+  .drop .badge{position:absolute;left:8px;top:8px;z-index:2;background:rgba(12,11,10,.78);backdrop-filter:blur(4px);
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text);
+    padding:4px 8px;border-radius:6px;display:none}
+  .drop.filled .badge{display:block}
+  .drop.filled .lbl,.drop.filled .hint,.drop.filled .arrow{display:none}
+  .drop input{display:none}
+  .drop .swap{position:absolute;right:8px;top:8px;z-index:2;display:none;background:rgba(12,11,10,.78);
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--text);padding:4px 8px;border-radius:6px}
+  .drop.filled:hover .swap{display:block}
+
+  /* preview */
+  .stage{margin:0 14px;position:relative;border-radius:10px;overflow:hidden;background:#0d0c0b;display:none;touch-action:none}
+  .stage.on{display:block}
+  .stage canvas{display:block;width:100%;height:auto}
+  #cvAfter{position:absolute;inset:0;width:100%;height:100%}
+  .divider{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.85);z-index:3;cursor:ew-resize}
+  .divider::after{content:"◂ ▸";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:rgba(12,11,10,.85);border:1px solid var(--line-strong);color:var(--text);
+    font-size:10px;letter-spacing:1px;padding:6px 8px;border-radius:99px;white-space:nowrap}
+  .tag-ba{position:absolute;top:10px;z-index:2;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+    text-transform:uppercase;background:rgba(12,11,10,.7);padding:4px 8px;border-radius:6px;pointer-events:none}
+  .tag-ba.a{left:10px}.tag-ba.b{right:10px}
+
+  /* scope (assinatura) */
+  .scope{margin:12px 14px 14px;display:none}
+  .scope.on{display:block}
+  .scope-head{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  .scope canvas{width:100%;height:44px;display:block;border-radius:7px;border:1px solid var(--line)}
+
+  .empty-note{padding:10px 14px 16px;color:var(--dim);font-size:12.5px;font-family:var(--mono);letter-spacing:.02em}
+
+  /* ---------- controles ---------- */
+  .controls{padding:16px;display:flex;flex-direction:column;gap:18px;align-self:start;position:sticky;top:14px}
+  @media(max-width:920px){.controls{position:static}}
+  .ctl-h{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+    display:flex;justify-content:space-between;align-items:center}
+  .ctl-h button{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--dim);text-decoration:underline;text-underline-offset:3px}
+  .ctl-h button:hover{color:var(--text)}
+
+  .sl{display:grid;grid-template-columns:1fr 46px;align-items:center;gap:10px;margin-top:10px}
+  .sl label{grid-column:1/-1;display:flex;justify-content:space-between;font-size:12.5px;color:var(--text);margin-bottom:-4px}
+  .sl output{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:var(--track,#3a3733)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:99px;background:var(--track,#3a3733)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:var(--text);border:2px solid var(--bg);margin-top:-5px;box-shadow:0 0 0 1px var(--line-strong)}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:var(--text);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--line-strong)}
+  /* trilhas funcionais — a cor mora no controle */
+  #temp{--track:linear-gradient(90deg,#4a7dbd,#3a3733 45%,#3a3733 55%,#d9a13c)}
+  #tint{--track:linear-gradient(90deg,#5da95d,#3a3733 45%,#3a3733 55%,#c46bb8)}
+  #sat{--track:linear-gradient(90deg,#6b6862,#b0433c)}
+  #fade{--track:linear-gradient(90deg,#232120,#6b6862)}
+
+  .looks{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .chip{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted);
+    border:1px solid var(--line-strong);border-radius:99px;padding:6px 12px;transition:all .12s}
+  .chip:hover{color:var(--text);border-color:var(--text)}
+  .chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+  .export{border-top:1px solid var(--line);padding-top:16px;display:flex;flex-direction:column;gap:10px}
+  .name-row{display:flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:9px;padding:9px 12px}
+  .name-row span{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em}
+  .name-row input{flex:1;background:none;border:none;color:var(--text);font-family:var(--mono);font-size:12.5px;outline:none;min-width:0}
+  .export .note{font-size:11.5px;color:var(--dim);font-family:var(--mono);line-height:1.5}
+
+
+
+</style>
+</head>
+<body data-tool="luma">
+
+<div id="topbar"></div>
+<script src="../assets/shell.js"></script>
+
+<main class="wrap">
+  <div class="tool-head">
+    <h1>Luma Grade</h1>
+    <p>Um frame do seu vídeo, uma imagem com a cor que você quer, e sai um .cube sob medida. Nenhuma imagem sai do seu computador.</p>
+  </div>
+
+<div class="tool">
+    <!-- coluna esquerda: imagens + preview -->
+    <div class="panel">
+      <div class="uploads">
+        <div class="drop" id="dropSrc" tabindex="0" role="button" aria-label="Enviar frame do seu vídeo">
+          <span class="badge">Seu frame</span>
+          <button class="swap" type="button">trocar</button>
+          <div class="arrow">↑</div>
+          <div class="lbl">Frame do seu vídeo</div>
+          <div class="hint">arraste, clique ou cole (Ctrl+V)</div>
+          <input type="file" accept="image/*">
+        </div>
+        <div class="drop" id="dropRef" tabindex="0" role="button" aria-label="Enviar imagem de referência">
+          <span class="badge">Referência</span>
+          <button class="swap" type="button">trocar</button>
+          <div class="arrow">↑</div>
+          <div class="lbl">Referência</div>
+          <div class="hint">um print da estética que você quer</div>
+          <input type="file" accept="image/*">
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <span class="tag-ba a">Antes</span>
+        <span class="tag-ba b">Depois</span>
+        <canvas id="cvBefore"></canvas>
+        <canvas id="cvAfter"></canvas>
+        <div class="divider" id="divider"></div>
+      </div>
+
+      <div class="scope" id="scope">
+        <div class="scope-head"><span>Entrada</span><span>Resposta do LUT</span><span>Saída</span></div>
+        <canvas id="cvScope" height="88"></canvas>
+      </div>
+
+      <div class="empty-note" id="emptyNote">// envie um frame para ver o preview. A referência é opcional — sem ela, você grada só com os ajustes.</div>
+    </div>
+
+    <!-- coluna direita: controles -->
+    <div class="panel controls">
+      <div>
+        <div class="ctl-h">Transferência</div>
+        <div class="sl">
+          <label>Intensidade <output id="o-intensity">0.85</output></label>
+          <input type="range" id="intensity" min="0" max="1" step="0.01" value="0.85" style="grid-column:1/-1">
+        </div>
+      </div>
+
+      <div>
+        <div class="ctl-h">Ajuste fino <button type="button" id="resetBtn">resetar</button></div>
+        <div class="sl"><label>Exposição <output id="o-exp">0.00</output></label><input type="range" id="exp" min="-1.5" max="1.5" step="0.01" value="0" style="grid-column:1/-1"></div>
+        <div class="sl"><label>Contraste <output id="o-contrast">0.00</output></label><input type="range" id="contrast" min="-1" max="1" step="0.01" value="0" style="grid-column:1/-1"></div>
+        <div class="sl"><label>Pretos <output id="o-blacks">0.00</output></label><input type="range" id="blacks" min="-1" max="1" step="0.01" value="0" style="grid-column:1/-1"></div>
+        <div class="sl"><label>Tons médios <output id="o-mid">0.00</output></label><input type="range" id="mid" min="-1" max="1" step="0.01" value="0" style="grid-column:1/-1"></div>
+        <div class="sl"><label>Saturação <output id="o-sat">1.00</output></label><input type="range" id="sat" min="0" max="2" step="0.01" value="1" style="grid-column:1/-1"></div>
+        <div class="sl"><label>Temperatura <output id="o-temp">0.00</output></label><input type="range" id="temp" min="-1" max="1" step="0.01" value="0" style="grid-column:1/-1"></div>
+        <div class="sl"><label>Tonalidade <output id="o-tint">0.00</output></label><input type="range" id="tint" min="-1" max="1" step="0.01" value="0" style="grid-column:1/-1"></div>
+        <div class="sl"><label>Fade <output id="o-fade">0.00</output></label><input type="range" id="fade" min="0" max="1" step="0.01" value="0" style="grid-column:1/-1"></div>
+      </div>
+
+      <div>
+        <div class="ctl-h">Looks prontos</div>
+        <div class="looks" id="looks"></div>
+      </div>
+
+      <div class="export">
+        <div class="name-row"><span>NOME</span><input id="lutName" value="meu-look" spellcheck="false"><span>.CUBE</span></div>
+        <button class="btn primary block" id="downloadBtn" type="button">Baixar LUT</button>
+        <button class="btn block" id="downloadFrame" type="button">Baixar frame tratado</button>
+        <div class="note">33×33×33 · compatível com CapCut, Premiere, DaVinci Resolve, Final Cut, VN e BlackMagic Cam.</div>
+      </div>
+    </div>
+  </div>
+
+  </main>
+
+<script>
+/* ============ MOTOR DE COR (validado por testes) ============ */
+function s2l(c){ return c <= 0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4); }
+function l2s(c){ return c <= 0.0031308 ? 12.92*c : 1.055*Math.pow(c, 1/2.4) - 0.055; }
+const EPS = 216/24389, KAP = 24389/27, Xn = 0.95047, Zn = 1.08883;
+
+function rgb2lab(r,g,b){
+  const rl=s2l(r), gl=s2l(g), bl=s2l(b);
+  const X=(0.4124564*rl+0.3575761*gl+0.1804375*bl)/Xn;
+  const Y=(0.2126729*rl+0.7151522*gl+0.0721750*bl);
+  const Z=(0.0193339*rl+0.1191920*gl+0.9503041*bl)/Zn;
+  const f=t=>t>EPS?Math.cbrt(t):(KAP*t+16)/116;
+  const fx=f(X), fy=f(Y), fz=f(Z);
+  return [116*fy-16, 500*(fx-fy), 200*(fy-fz)];
+}
+function lab2rgb(L,a,b){
+  const fy=(L+16)/116, fx=fy+a/500, fz=fy-b/200;
+  const fi=t=>{const t3=t*t*t; return t3>EPS?t3:(116*t-16)/KAP;};
+  const X=fi(fx)*Xn, Z=fi(fz)*Zn;
+  const Y=L>KAP*EPS?Math.pow((L+16)/116,3):L/KAP;
+  const rl= 3.2404542*X-1.5371385*Y-0.4985314*Z;
+  const gl=-0.9692660*X+1.8760108*Y+0.0415560*Z;
+  const bl= 0.0556434*X-0.2040259*Y+1.0572252*Z;
+  const cl=v=>Math.min(1,Math.max(0,v));
+  return [cl(l2s(cl(rl))), cl(l2s(cl(gl))), cl(l2s(cl(bl)))];
+}
+function labStats(data){
+  let n=0,mL=0,mA=0,mB=0;
+  for(let i=0;i<data.length;i+=16){
+    const v=rgb2lab(data[i]/255,data[i+1]/255,data[i+2]/255);
+    mL+=v[0];mA+=v[1];mB+=v[2];n++;
+  }
+  mL/=n;mA/=n;mB/=n;
+  let sL=0,sA=0,sB=0;
+  for(let i=0;i<data.length;i+=16){
+    const v=rgb2lab(data[i]/255,data[i+1]/255,data[i+2]/255);
+    sL+=(v[0]-mL)**2;sA+=(v[1]-mA)**2;sB+=(v[2]-mB)**2;
+  }
+  return {mL,mA,mB,sL:Math.sqrt(sL/n)||1,sA:Math.sqrt(sA/n)||1,sB:Math.sqrt(sB/n)||1};
+}
+const clampRatio=r=>Math.min(3,Math.max(0.3,r));
+
+function pipeline(r,g,b,P,src,ref){
+  let [L,A,B]=rgb2lab(r,g,b);
+  if(src&&ref&&P.intensity>0){
+    const rL=clampRatio(ref.sL/src.sL), rA=clampRatio(ref.sA/src.sA), rB=clampRatio(ref.sB/src.sB);
+    const tL=(L-src.mL)*rL+ref.mL, tA=(A-src.mA)*rA+ref.mA, tB=(B-src.mB)*rB+ref.mB;
+    const t=P.intensity;
+    L+=(tL-L)*t; A+=(tA-A)*t; B+=(tB-B)*t;
+  }
+  B+=P.temp*40; A+=P.tint*40;
+  A*=P.sat; B*=P.sat;
+  L=50+(L-50)*(1+P.contrast);
+  const Ln=Math.min(1,Math.max(0,L/100));
+  L=100*Math.pow(Ln,1/(1+P.mid*0.8));
+  L+=P.blacks*30*Math.pow(1-Ln,2);
+  let [ro,go,bo]=lab2rgb(L,A,B);
+  if(P.exp!==0){
+    const k=Math.pow(2,P.exp);
+    ro=l2s(Math.min(1,s2l(ro)*k)); go=l2s(Math.min(1,s2l(go)*k)); bo=l2s(Math.min(1,s2l(bo)*k));
+  }
+  if(P.fade>0){
+    const lift=P.fade*0.14;
+    ro=lift+ro*(1-lift); go=lift+go*(1-lift); bo=lift+bo*(1-lift);
+  }
+  const cl=v=>Math.min(1,Math.max(0,v));
+  return [cl(ro),cl(go),cl(bo)];
+}
+
+// 33³ é o tamanho padrão do .cube — e é usado também no preview, de propósito.
+// Testei uma LUT reduzida (17³) para o preview: fica ~8x mais rápida de montar,
+// mas desvia até 22 níveis de 255 contra a de 33³, e não só nos saturados. Numa
+// ferramenta de cor isso é o preview mentindo, então o custo fica.
+// O que realmente pesava era aplicar a LUT pixel a pixel num frame grande;
+// por isso o preview é limitado por número de pixels (MAX_PREVIEW_PX abaixo).
+const LUT_SIZE=33;
+function buildLUT(P,src,ref,N){
+  N=N||LUT_SIZE;
+  const out=new Float32Array(N*N*N*3);
+  let idx=0;
+  for(let bi=0;bi<N;bi++)for(let gi=0;gi<N;gi++)for(let ri=0;ri<N;ri++){
+    const v=pipeline(ri/(N-1),gi/(N-1),bi/(N-1),P,src,ref);
+    out[idx++]=v[0];out[idx++]=v[1];out[idx++]=v[2];
+  }
+  return out;
+}
+function lutToCube(lut,title,N){
+  N=N||LUT_SIZE;
+  let s=`TITLE "${title}"\nLUT_3D_SIZE ${N}\nDOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n`;
+  const lines=new Array(N*N*N);
+  for(let i=0,j=0;i<lut.length;i+=3,j++)
+    lines[j]=lut[i].toFixed(6)+' '+lut[i+1].toFixed(6)+' '+lut[i+2].toFixed(6);
+  return s+lines.join('\n')+'\n';
+}
+// aplica LUT (trilinear) a um ImageData de origem, escrevendo no destino
+function applyLUTToImage(lut,srcData,dstData,N){
+  N=N||LUT_SIZE;
+  const M=N-1, s=srcData, d=dstData;
+  for(let i=0;i<s.length;i+=4){
+    const fr=s[i]/255*M, fg=s[i+1]/255*M, fb=s[i+2]/255*M;
+    const r0=Math.min(M-1,fr|0), g0=Math.min(M-1,fg|0), b0=Math.min(M-1,fb|0);
+    const dr=fr-r0, dg=fg-g0, db=fb-b0;
+    const base=(b0*N+g0)*N+r0;
+    for(let c=0;c<3;c++){
+      const i000=(base)*3+c, i100=(base+1)*3+c;
+      const i010=(base+N)*3+c, i110=(base+N+1)*3+c;
+      const i001=(base+N*N)*3+c, i101=(base+N*N+1)*3+c;
+      const i011=(base+N*N+N)*3+c, i111=(base+N*N+N+1)*3+c;
+      const c00=lut[i000]+(lut[i100]-lut[i000])*dr;
+      const c10=lut[i010]+(lut[i110]-lut[i010])*dr;
+      const c01=lut[i001]+(lut[i101]-lut[i001])*dr;
+      const c11=lut[i011]+(lut[i111]-lut[i011])*dr;
+      const c0=c00+(c10-c00)*dg, c1=c01+(c11-c01)*dg;
+      d[i+c]=Math.round((c0+(c1-c0)*db)*255);
+    }
+    d[i+3]=255;
+  }
+}
+
+/* ============ ESTADO ============ */
+const $=id=>document.getElementById(id);
+const state={
+  srcStats:null, refStats:null,
+  srcImage:null,               // frame original, usado só na exportação
+  srcImageData:null,           // frame reduzido, usado no preview ao vivo
+  lut:null,
+  P:{intensity:0.85,exp:0,contrast:0,blacks:0,mid:0,sat:1,temp:0,tint:0,fade:0}
+};
+
+/* ============ UPLOADS ============ */
+function setupDrop(el,onImage){
+  const input=el.querySelector('input');
+  el.addEventListener('click',e=>{ if(e.target.classList.contains('swap')){input.click();return;} input.click(); });
+  el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();} });
+  input.addEventListener('change',()=>{ if(input.files[0]) loadFile(input.files[0],el,onImage); });
+  ['dragover','dragenter'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();el.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();el.classList.remove('over');}));
+  el.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) loadFile(f,el,onImage); });
+}
+function loadFile(file,el,onImage){
+  if(!file||!String(file.type).startsWith('image/')){ Shell.toast('Esse arquivo não é uma imagem.'); return; }
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=()=>{
+    let th=el.querySelector('img.thumb');
+    if(!th){ th=document.createElement('img'); th.className='thumb'; th.alt=''; el.appendChild(th); }
+    // Trocar de imagem várias vezes vazava um object URL por troca.
+    if(el.dataset.objUrl) URL.revokeObjectURL(el.dataset.objUrl);
+    el.dataset.objUrl=url;
+    th.src=url;
+    el.classList.add('filled');
+    onImage(img);
+  };
+  img.onerror=()=>{ URL.revokeObjectURL(url); Shell.toast('Não deu para abrir essa imagem.'); };
+  img.src=url;
+}
+function statsFromImage(img){
+  const c=document.createElement('canvas');
+  const s=Math.min(1,220/Math.max(img.naturalWidth,img.naturalHeight));
+  c.width=Math.max(1,Math.round(img.naturalWidth*s));
+  c.height=Math.max(1,Math.round(img.naturalHeight*s));
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(img,0,0,c.width,c.height);
+  return labStats(ctx.getImageData(0,0,c.width,c.height).data);
+}
+
+function onSrcImage(img){
+  state.srcImage=img;              // guardado para exportar o frame em tamanho real
+  state.srcStats=statsFromImage(img);
+  // O preview é limitado por ÁREA, não por largura. Limitando só a largura, um
+  // frame 9:16 virava 960×1706 (1,6 milhão de px) e cada arrasto de slider
+  // custava ~87ms só para aplicar a LUT. Por área o custo fica estável em
+  // qualquer proporção.
+  const MAX_PREVIEW_PX=620000, MAX_PREVIEW_W=900;
+  const px=img.naturalWidth*img.naturalHeight;
+  const s=Math.min(1, MAX_PREVIEW_W/img.naturalWidth, Math.sqrt(MAX_PREVIEW_PX/px));
+  const w=Math.max(1,Math.round(img.naturalWidth*s)), h=Math.max(1,Math.round(img.naturalHeight*s));
+  const before=$('cvBefore'), after=$('cvAfter');
+  before.width=after.width=w; before.height=after.height=h;
+  const bctx=before.getContext('2d',{willReadFrequently:true});
+  bctx.drawImage(img,0,0,w,h);
+  state.srcImageData=bctx.getImageData(0,0,w,h);
+  $('stage').classList.add('on');
+  $('scope').classList.add('on');
+  $('emptyNote').style.display='none';
+  placeDivider(0.5);
+  scheduleUpdate();
+}
+function onRefImage(img){
+  state.refStats=statsFromImage(img);
+  scheduleUpdate();
+}
+setupDrop($('dropSrc'),onSrcImage);
+setupDrop($('dropRef'),onRefImage);
+
+// colar imagem (Ctrl+V): vai para o slot vazio (frame primeiro)
+window.addEventListener('paste',e=>{
+  const item=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));
+  if(!item) return;
+  const file=item.getAsFile();
+  if(!state.srcImageData) loadFile(file,$('dropSrc'),onSrcImage);
+  else loadFile(file,$('dropRef'),onRefImage);
+});
+
+/* ============ SLIDERS ============ */
+const sliderIds=['intensity','exp','contrast','blacks','mid','sat','temp','tint','fade'];
+sliderIds.forEach(id=>{
+  $(id).addEventListener('input',()=>{
+    state.P[id]=parseFloat($(id).value);
+    $('o-'+id).textContent=state.P[id].toFixed(2);
+    clearLookSelection();
+    scheduleUpdate();
+  });
+});
+function syncSliders(){
+  sliderIds.forEach(id=>{ $(id).value=state.P[id]; $('o-'+id).textContent=state.P[id].toFixed(2); });
+}
+$('resetBtn').addEventListener('click',()=>{
+  Object.assign(state.P,{exp:0,contrast:0,blacks:0,mid:0,sat:1,temp:0,tint:0,fade:0});
+  clearLookSelection(); syncSliders(); scheduleUpdate();
+});
+
+/* ============ LOOKS PRONTOS ============ */
+const LOOKS={
+  'Clean':   {contrast:0.10,sat:0.95,temp:-0.05,blacks:-0.05,exp:0.05,mid:0,tint:0,fade:0},
+  'Warm':    {temp:0.30,tint:0.05,exp:0.08,sat:1.05,contrast:0.05,blacks:0,mid:0,fade:0},
+  'Golden':  {temp:0.50,tint:0.12,contrast:0.15,fade:0.10,sat:1.10,exp:0.05,blacks:0,mid:0},
+  'Matte':   {fade:0.35,contrast:0.20,sat:0.90,blacks:0.08,temp:0,tint:0,exp:0,mid:0},
+  'Vintage': {fade:0.28,temp:0.20,tint:0.08,sat:0.80,mid:0.08,contrast:0.05,blacks:0,exp:0},
+  'Arctic':  {temp:-0.40,contrast:0.15,sat:1.05,exp:0.05,tint:-0.03,blacks:0,mid:0,fade:0},
+  'Moss':    {temp:0.08,tint:-0.14,sat:0.85,contrast:0.10,fade:0.14,blacks:0,mid:0,exp:0},
+  'P&B':     {sat:0,contrast:0.28,fade:0.08,blacks:-0.05,temp:0,tint:0,exp:0,mid:0}
+};
+const looksEl=$('looks');
+Object.keys(LOOKS).forEach(name=>{
+  const b=document.createElement('button');
+  b.type='button'; b.className='chip'; b.textContent=name;
+  b.addEventListener('click',()=>{
+    Object.assign(state.P,LOOKS[name]);
+    clearLookSelection(); b.classList.add('on');
+    syncSliders(); scheduleUpdate();
+    if(!nameTouched) $('lutName').value=name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  });
+  looksEl.appendChild(b);
+});
+function clearLookSelection(){ looksEl.querySelectorAll('.chip.on').forEach(c=>c.classList.remove('on')); }
+let nameTouched=false;
+$('lutName').addEventListener('input',()=>nameTouched=true);
+
+/* ============ ATUALIZAÇÃO / RENDER ============ */
+let dirty=false, rendering=false;
+function scheduleUpdate(){ dirty=true; if(!rendering) requestAnimationFrame(tick); }
+function tick(){
+  if(!dirty){ rendering=false; return; }
+  dirty=false; rendering=true;
+  state.lut=buildLUT(state.P,state.srcStats,state.refStats,LUT_SIZE);
+  renderPreview();
+  renderScope();
+  requestAnimationFrame(tick);
+}
+let dstImageData=null;
+function renderPreview(){
+  if(!state.srcImageData) return;
+  const after=$('cvAfter');
+  const ctx=after.getContext('2d');
+  if(!dstImageData||dstImageData.width!==state.srcImageData.width||dstImageData.height!==state.srcImageData.height)
+    dstImageData=ctx.createImageData(state.srcImageData.width,state.srcImageData.height);
+  applyLUTToImage(state.lut,state.srcImageData.data,dstImageData.data,LUT_SIZE);
+  ctx.putImageData(dstImageData,0,0);
+}
+function renderScope(){
+  const cv=$('cvScope');
+  const W=Math.max(120, Math.round(cv.clientWidth||cv.parentElement.clientWidth||600));
+  if(cv.width!==W) cv.width=W;
+  const H=cv.height, ctx=cv.getContext('2d');
+  const rows=[
+    y=>{const v=y; return [v,v,v];},                                  // rampa cinza
+    y=>hsl2rgb(y*360,0.65,0.55)                                       // varredura de matiz
+  ];
+  const rowH=H/4;
+  for(let x=0;x<W;x++){
+    const t=x/(W-1);
+    for(let r=0;r<2;r++){
+      const inRGB=rows[r](t);
+      const outRGB=state.lut?applyLUTPoint(state.lut,inRGB,LUT_SIZE):inRGB;
+      ctx.fillStyle=`rgb(${inRGB.map(v=>Math.round(v*255)).join(',')})`;
+      ctx.fillRect(x,r*2*rowH,1,rowH);
+      ctx.fillStyle=`rgb(${outRGB.map(v=>Math.round(v*255)).join(',')})`;
+      ctx.fillRect(x,(r*2+1)*rowH,1,rowH);
+    }
+  }
+}
+function applyLUTPoint(lut,[r,g,b],N){
+  N=N||LUT_SIZE;
+  const M=N-1;
+  const fr=r*M,fg=g*M,fb=b*M;
+  const r0=Math.min(M-1,fr|0),g0=Math.min(M-1,fg|0),b0=Math.min(M-1,fb|0);
+  const dr=fr-r0,dg=fg-g0,db=fb-b0, base=(b0*N+g0)*N+r0, out=[0,0,0];
+  for(let c=0;c<3;c++){
+    const c00=lut[base*3+c]+(lut[(base+1)*3+c]-lut[base*3+c])*dr;
+    const c10=lut[(base+N)*3+c]+(lut[(base+N+1)*3+c]-lut[(base+N)*3+c])*dr;
+    const c01=lut[(base+N*N)*3+c]+(lut[(base+N*N+1)*3+c]-lut[(base+N*N)*3+c])*dr;
+    const c11=lut[(base+N*N+N)*3+c]+(lut[(base+N*N+N+1)*3+c]-lut[(base+N*N+N)*3+c])*dr;
+    const c0=c00+(c10-c00)*dg, c1=c01+(c11-c01)*dg;
+    out[c]=c0+(c1-c0)*db;
+  }
+  return out;
+}
+function hsl2rgb(h,s,l){
+  h/=360;
+  const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+  const f=t=>{ t=(t%1+1)%1;
+    if(t<1/6)return p+(q-p)*6*t;
+    if(t<1/2)return q;
+    if(t<2/3)return p+(q-p)*(2/3-t)*6;
+    return p; };
+  return [f(h+1/3),f(h),f(h-1/3)];
+}
+
+/* ============ ANTES/DEPOIS ============ */
+let dividerFrac=0.5;
+function placeDivider(frac){
+  const stage=$('stage'), div=$('divider'), after=$('cvAfter');
+  const w=stage.clientWidth||1;
+  dividerFrac=Math.min(0.98,Math.max(0.02,frac));
+  const x=dividerFrac*w;
+  div.style.left=x+'px';
+  after.style.clipPath=`inset(0 0 0 ${x}px)`;
+}
+(function(){
+  const stage=$('stage');
+  let dragging=false;
+  const move=e=>{
+    if(!dragging)return;
+    const rect=stage.getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+    placeDivider(x/rect.width);
+  };
+  $('divider').addEventListener('pointerdown',e=>{dragging=true;e.preventDefault();});
+  stage.addEventListener('pointerdown',e=>{dragging=true;move(e);});
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',()=>dragging=false);
+  // Ao redimensionar, recalcula em pixels mantendo a fração escolhida —
+  // antes a divisória pulava de volta para o meio.
+  window.addEventListener('resize',()=>{ if($('stage').classList.contains('on')) placeDivider(dividerFrac); });
+})();
+
+/* ============ EXPORT ============ */
+$('downloadBtn').addEventListener('click',()=>{
+  // A LUT guardada em state é a de preview (17³). O arquivo sai sempre em 33³.
+  const full=buildLUT(state.P,state.srcStats,state.refStats,LUT_SIZE);
+  const name=(($('lutName').value||'').trim()||'meu-look').replace(/[^\w\-]+/g,'-');
+  const cube=lutToCube(full,name,LUT_SIZE);
+  Shell.saveBlob(new Blob([cube],{type:'text/plain;charset=utf-8'}), name+'.cube');
+  Shell.toast('LUT salva em 33³.');
+});
+
+// Exporta o frame já tratado — útil para mandar referência de cor sem abrir o editor.
+$('downloadFrame').addEventListener('click',()=>{
+  if(!state.srcImage){ Shell.toast('Carregue um frame primeiro.'); return; }
+  const full=buildLUT(state.P,state.srcStats,state.refStats,LUT_SIZE);
+  // Exporta na resolução original do frame, não na reduzida do preview.
+  const img=state.srcImage;
+  const w=img.naturalWidth, h=img.naturalHeight;
+  const off=document.createElement('canvas');
+  off.width=w; off.height=h;
+  const octx=off.getContext('2d',{willReadFrequently:true});
+  octx.drawImage(img,0,0,w,h);
+  const out=octx.getImageData(0,0,w,h);
+  applyLUTToImage(full,out.data,out.data,LUT_SIZE);
+  octx.putImageData(out,0,0);
+  const name=(($('lutName').value||'').trim()||'meu-look').replace(/[^\w\-]+/g,'-');
+  Shell.canvasBlob(off)
+    .then(b=>{ Shell.saveBlob(b, name+'-frame.png'); Shell.toast('Frame salvo.'); })
+    .catch(()=>Shell.toast('Não foi possível gerar o PNG.'));
+});
+
+// primeiro render (LUT neutro no scope se nada carregado)
+scheduleUpdate();
+</script>
+</body>
+</html>

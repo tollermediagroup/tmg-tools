@@ -1,0 +1,19 @@
+# Cloudflare Pages lê este arquivo automaticamente. Deixe-o na raiz do repo.
+#
+# ui.css e shell.js não têm hash no nome: se o navegador guardar a versão
+# antiga, você empurra uma correção e continua vendo o site velho. Aqui eles
+# ficam em cache no edge, mas o navegador sempre confere se mudou antes de usar.
+
+/assets/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# As ferramentas rodam tudo local e não chamam nenhuma API. Estes cabeçalhos
+# fecham o que não é usado e evitam que a página seja embutida em outro site.
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gerador de comentários — Toolbench</title>
+<meta name="description" content="Gera comentários do Instagram e do TikTok em PNG transparente, um por vez ou em lote via CSV.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/ui.css">
+<style>
+  .app{display:grid;grid-template-columns:340px 1fr 340px;height:calc(100dvh - var(--topbar-h));min-height:0}
+  .panel.right{border-right:0;border-left:1px solid var(--line)}
+
+
+  .panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;overscroll-behavior:contain}
+  .brand{display:flex;align-items:center;gap:11px;padding:17px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:color-mix(in srgb, var(--panel) 90%, transparent);backdrop-filter:blur(14px);z-index:3}
+  .dot{width:26px;height:26px;border-radius:8px;flex:none;background:conic-gradient(from -45deg,#FEDA75,#FA7E1E,#D62976,#962FBF,#4F5BD5,#FEDA75);box-shadow:0 0 0 1px rgba(255,255,255,.10),0 4px 14px rgba(214,41,118,.35)}
+  .brand b{font-size:14px;font-weight:600;letter-spacing:-.015em}
+  .brand span{font-size:10px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.02em}
+
+  fieldset{border:0;margin:0;padding:18px 20px 20px;border-bottom:1px solid var(--line-soft)}
+  fieldset[hidden]{display:none}
+  legend{padding:0;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);font-family:var(--mono);margin-bottom:14px}
+  label.f{display:block;margin-bottom:14px}
+  label.f > span{display:block;font-size:11.5px;font-weight:500;color:var(--ink-dim);margin-bottom:6px}
+  input[type=text],textarea,select{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:var(--r);padding:9px 11px;font:inherit;font-size:13px;outline:none;box-shadow:var(--shadow-1);transition:border-color .14s,box-shadow .14s,background .14s}
+  input[type=text]:hover,textarea:hover,select:hover{border-color:#2E3441}
+  textarea{resize:vertical;min-height:84px;line-height:1.5}
+  input[type=text]:focus,textarea:focus,select:focus{border-color:var(--focus);background:var(--panel-3);box-shadow:0 0 0 3px rgba(124,140,255,.16)}
+  input[type=text]::placeholder,textarea::placeholder{color:var(--ink-faint)}
+  select{appearance:none;cursor:pointer;padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--ink-dim) 50%),linear-gradient(135deg,var(--ink-dim) 50%,transparent 50%);background-position:calc(100% - 16px) calc(50% + 1px),calc(100% - 12px) calc(50% + 1px);background-size:4px 4px;background-repeat:no-repeat}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:3px;box-shadow:var(--shadow-1)}
+  .seg button{flex:1;background:transparent;border:0;color:var(--ink-dim);font:inherit;font-size:12px;font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:background .14s,color .14s}
+  .seg button:hover:not(:disabled){color:var(--ink)}
+  .seg button[aria-pressed=true]{background:linear-gradient(#2C3240,#252A36);color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.05) inset}
+  .seg button:disabled{opacity:.32;cursor:not-allowed}
+
+  .check{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;font-size:13px;color:var(--ink-dim);transition:color .14s}
+  .check:hover{color:var(--ink)}
+  .check input{appearance:none;width:36px;height:20px;border-radius:20px;background:#272C37;position:relative;cursor:pointer;flex:none;transition:background .18s;box-shadow:0 1px 2px rgba(0,0,0,.35) inset}
+  .check input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#7E8697;transition:.18s cubic-bezier(.3,.7,.3,1);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .check input:checked{background:var(--accent-soft);box-shadow:0 0 0 1px rgba(255,59,107,.35) inset}
+  .check input:checked::after{left:18px;background:var(--accent);box-shadow:0 1px 6px rgba(255,59,107,.6)}
+  .check input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+  .avatar-row{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+  .avatar-prev{width:52px;height:52px;border-radius:50%;flex:none;border:1px dashed #303643;background:#191C24 center/cover no-repeat;display:grid;place-items:center;color:var(--ink-faint);font-size:19px;cursor:pointer;transition:border-color .14s,color .14s}
+  .avatar-prev:hover{border-color:var(--focus);color:var(--ink-dim)}
+
+  .range{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;appearance:none;height:4px;border-radius:99px;background:#272C37;outline:none}
+  input[type=range]::-webkit-slider-thumb{appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.55),0 0 0 4px rgba(255,59,107,.18)}
+  input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 1px 4px rgba(0,0,0,.55),0 0 0 6px rgba(255,59,107,.24)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer}
+  input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:4px}
+  .range output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:48px;text-align:right}
+  input[type=color]{width:36px;height:36px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--panel-2);cursor:pointer;flex:none}
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:6px}
+  .hint{font-size:11px;color:var(--ink-faint);line-height:1.55;margin:-2px 0 12px}
+
+  .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
+  .stage-bar{display:flex;align-items:center;gap:8px;padding:12px 22px;border-bottom:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
+  .stage-bar .spacer{flex:1}
+  .meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.01em}
+  .canvas-wrap{flex:1;min-height:180px;overflow:auto;display:grid;place-items:center;padding:44px 28px;
+    background:
+      radial-gradient(900px 420px at 50% -12%,rgba(255,59,107,.13),transparent 65%),
+      radial-gradient(700px 400px at 85% 110%,rgba(124,140,255,.10),transparent 70%),
+      linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px) 0 0/28px 28px,
+      linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px) 0 0/28px 28px,
+      var(--bg)}
+  body.bulk .canvas-wrap{flex:none;max-height:38vh;padding:22px}
+  .frame{background-color:#14161B;background-image:linear-gradient(45deg,#1B1E25 25%,transparent 25%,transparent 75%,#1B1E25 75%),linear-gradient(45deg,#1B1E25 25%,transparent 25%,transparent 75%,#1B1E25 75%);background-size:16px 16px;background-position:0 0,8px 8px;border-radius:14px;box-shadow:0 0 0 1px rgba(255,255,255,.07),0 24px 70px rgba(0,0,0,.62);max-width:100%}
+  canvas{display:block;max-width:100%;height:auto;border-radius:14px}
+
+  #bulk{flex:1;min-height:0;display:none;flex-direction:column;border-top:1px solid var(--line);background:var(--panel)}
+  body.bulk #bulk{display:flex}
+  .bulk-bar{display:flex;gap:8px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+  .bulk-bar .spacer{flex:1}
+  .table-scroll{flex:1;min-height:0;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{position:sticky;top:0;background:rgba(18,20,26,.94);backdrop-filter:blur(10px);text-align:left;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);font-family:var(--mono);font-weight:400;padding:11px 14px;border-bottom:1px solid var(--line);z-index:1}
+  td{padding:8px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  tr td{transition:background .12s}
+  tr.active td{background:rgba(255,59,107,.07)}
+  tr.active td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+  tr:hover td{background:rgba(255,255,255,.025)}
+  tr.active:hover td{background:rgba(255,59,107,.10)}
+  td .idx{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+  td input[type=text]{padding:8px 10px;border-radius:8px}
+  .cell-actions{display:flex;gap:6px;justify-content:flex-end}
+  .thumb{width:32px;height:32px;border-radius:50%;border:1px dashed #303643;background:#191C24 center/cover no-repeat;cursor:pointer;flex:none;transition:border-color .14s}
+  .thumb:hover{border-color:var(--focus)}
+  .cell-av{display:flex;gap:7px;align-items:center}
+  .empty{padding:40px 16px;text-align:center;color:var(--ink-faint);font-size:13px}
+
+
+  @media (max-width:1200px){
+    .app{grid-template-columns:1fr;height:auto}
+    .panel{order:2;border-right:0;border-left:0;border-top:1px solid var(--line);overflow:visible}
+    .panel.right{order:3}
+    .stage{order:1}
+    body.bulk .canvas-wrap{max-height:none}
+    #bulk{min-height:60vh}
+  }
+</style>
+</head>
+<body data-tool="comentarios">
+
+<div id="topbar"></div>
+<script src="../assets/shell.js"></script>
+
+<div class="app">
+
+  <aside class="panel">
+    <div class="brand">
+      <div class="dot"></div>
+      <div><b>Gerador de comentários</b><br><span>instagram · tiktok · v2</span></div>
+    </div>
+
+    <fieldset>
+      <legend>Modo</legend>
+      <div class="seg" id="mode">
+        <button type="button" data-v="single" aria-pressed="true">Simples</button>
+        <button type="button" data-v="bulk">Em lote</button>
+      </div>
+      <div style="height:10px"></div>
+      <div class="seg" id="platform">
+        <button type="button" data-v="ig" aria-pressed="true">Instagram</button>
+        <button type="button" data-v="tt">TikTok</button>
+      </div>
+      <p class="hint" id="formatHint" style="margin-top:9px">Comentário de feed, com curtidas e respostas.</p>
+      <div class="seg" id="theme">
+        <button type="button" data-v="light" aria-pressed="true">Tema claro</button>
+        <button type="button" data-v="dark">Tema escuro</button>
+      </div>
+      <div style="height:10px"></div>
+      <label class="f" style="margin:0">
+        <span>Idioma dos rótulos</span>
+        <select id="lang"><option value="en" selected>English</option><option value="pt">Português</option></select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Perfil <span id="rowTag" style="text-transform:none;letter-spacing:0"></span></legend>
+      <label class="f"><span>Nome de usuário</span><input type="text" id="username" spellcheck="false"></label>
+      <div class="avatar-row">
+        <div class="avatar-prev" id="avatarPrev" title="Clique, arraste uma imagem ou cole com Ctrl+V">+</div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+          <button class="btn sm" type="button" id="pickAvatar">Escolher foto</button>
+          <button class="btn sm ghost" type="button" id="genAvatar">Gerar colorido</button>
+          <button class="btn sm ghost" type="button" id="clearAvatar">Remover</button>
+        </div>
+      </div>
+      <input type="file" id="avatarFile" accept="image/*" hidden>
+      <label class="f" id="ringField"><span>Círculo de stories</span>
+        <select id="ring">
+          <option value="none">Sem círculo</option>
+          <option value="gradient">Story novo (gradiente)</option>
+          <option value="seen">Story já visto (cinza)</option>
+          <option value="close">Melhores amigos (verde)</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="verified"> Selo de verificado</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Comentário</legend>
+      <label class="f"><span>Texto</span><textarea id="text" spellcheck="false"></textarea></label>
+      <div class="row" id="igMeta">
+        <label class="f"><span>Tempo</span><input type="text" id="time" spellcheck="false"></label>
+        <label class="f"><span>Curtidas</span><input type="text" id="likes" spellcheck="false"></label>
+      </div>
+      <label class="check" id="likedField"><input type="checkbox" id="liked"> Coração curtido (vermelho)</label>
+    </fieldset>
+
+  </aside>
+
+  <main class="stage">
+    <div class="stage-bar">
+      <span class="meta" id="dims">—</span>
+      <span class="spacer"></span>
+      <button class="btn ghost sm" type="button" id="reset">Restaurar padrão</button>
+    </div>
+
+    <div class="canvas-wrap"><div class="frame"><canvas id="cv"></canvas></div></div>
+
+    <section id="bulk">
+      <div class="bulk-bar">
+        <button class="btn sm" type="button" id="addRow">+ Nova linha</button>
+        <button class="btn sm" type="button" id="importCsv">Importar CSV</button>
+        <button class="btn sm ghost" type="button" id="templateCsv">Baixar modelo</button>
+        <span class="spacer"></span>
+        <span class="meta" id="rowCount"></span>
+        <button class="btn primary sm" type="button" id="downloadAll">Baixar tudo (.zip)</button>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th style="width:34px">#</th>
+            <th style="width:170px">Usuário</th>
+            <th>Comentário</th>
+            <th style="width:88px">Verificado</th>
+            <th style="width:110px">Foto</th>
+            <th style="width:120px;text-align:right">Ações</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="emptyMsg" hidden>Nenhuma linha ainda. Clique em “Nova linha” ou importe um CSV.</div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="panel right">
+    <div class="brand">
+      <div><b>Ajustes visuais</b><br><span>ações · aparência · exportar</span></div>
+    </div>
+
+    <fieldset id="igActions">
+      <legend>Ações e respostas</legend>
+      <label class="check"><input type="checkbox" id="showHeart" checked> Mostrar coração</label>
+      <label class="check"><input type="checkbox" id="showLikes" checked> Mostrar contagem de curtidas</label>
+      <label class="check"><input type="checkbox" id="showReply" checked> Mostrar “Reply”</label>
+      <label class="check"><input type="checkbox" id="showHide"> Mostrar “Hide”</label>
+      <label class="check"><input type="checkbox" id="showTranslate"> Mostrar “See translation”</label>
+      <label class="check"><input type="checkbox" id="showReplies" checked> Mostrar “View N more replies”</label>
+      <label class="f" style="margin-top:8px"><span>Número de respostas</span><input type="text" id="repliesCount" spellcheck="false"></label>
+    </fieldset>
+
+    <fieldset id="ttOptions" hidden>
+      <legend>Balão do TikTok</legend>
+      <label class="f"><span>Tamanho do texto</span>
+        <div class="range"><input type="range" id="ttSize" min="14" max="34" step="1" value="22"><output id="ttSizeOut">22 px</output></div>
+      </label>
+      <label class="f" style="margin:0"><span>Rabinho do balão</span>
+        <select id="tail">
+          <option value="bl" selected>Embaixo à esquerda</option>
+          <option value="br">Embaixo à direita</option>
+          <option value="none">Sem rabinho</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Aparência</legend>
+      <label class="f"><span>Largura</span><div class="range"><input type="range" id="width" min="280" max="720" step="10" value="420"><output id="widthOut">420 px</output></div></label>
+      <label class="f"><span>Cantos arredondados</span><div class="range"><input type="range" id="radius" min="0" max="32" step="1" value="0"><output id="radiusOut">0 px</output></div></label>
+      <label class="f"><span>Margem ao redor</span><div class="range"><input type="range" id="pad" min="0" max="80" step="2" value="24"><output id="padOut">24 px</output></div></label>
+      <label class="f"><span>Fundo</span><div class="range">
+        <select id="bgMode" style="flex:1"><option value="none" selected>Transparente</option><option value="color">Cor sólida</option></select>
+        <input type="color" id="bgColor" value="#F2F2F2">
+      </div></label>
+      <label class="check"><input type="checkbox" id="shadow"> Sombra sob o card</label>
+      <label class="check"><input type="checkbox" id="customCard"> Cor do card personalizada</label>
+      <div class="range" style="margin-top:6px">
+        <input type="color" id="cardColor" value="#FFFFFF">
+        <span class="hint" style="margin:0">Só é usada com a opção acima ligada.</span>
+      </div>
+    </fieldset>
+
+    <fieldset style="border-bottom:0">
+      <legend>Exportar</legend>
+      <div class="seg" id="scale">
+        <button type="button" data-v="1">1x</button>
+        <button type="button" data-v="2">2x</button>
+        <button type="button" data-v="3" aria-pressed="true">3x</button>
+      </div>
+      <div style="height:10px"></div>
+      <button class="btn primary block" type="button" id="download">Baixar PNG</button>
+      <div style="height:8px"></div>
+      <button class="btn block" type="button" id="copy">Copiar para a área de transferência</button>
+    </fieldset>
+  </aside>
+</div>
+
+<input type="file" id="csvFile" accept=".csv,text/csv" hidden>
+<input type="file" id="rowAvatarFile" accept="image/*" hidden>
+
+<script>
+(function(){
+  "use strict";
+
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var mctx = document.createElement('canvas').getContext('2d');
+
+  var LABELS = {
+    en:{reply:'Reply', hide:'Hide', translate:'See translation',
+        replies:function(n){return n==='1' ? 'View 1 more reply' : 'View '+n+' more replies';},
+        ttPrefix:'Reply to ', ttSuffix:"'s comment"},
+    pt:{reply:'Responder', hide:'Ocultar', translate:'Ver tradução',
+        replies:function(n){return n==='1' ? 'Ver mais 1 resposta' : 'Ver mais '+n+' respostas';},
+        ttPrefix:'Respondendo a ', ttSuffix:''}
+  };
+
+  var GEN_COLORS = [
+    ['#F58529','#DD2A7B'],['#4F5BD5','#962FBF'],['#00C6FF','#0072FF'],
+    ['#11998E','#38EF7D'],['#FF512F','#DD2476'],['#F7971E','#FFD200'],
+    ['#654EA3','#EAAFC8'],['#141E30','#243B55']
+  ];
+
+  var DEFAULTS = {
+    mode:'single', platform:'ig', theme:'light', lang:'en',
+    width:420, radius:0, pad:24, bgMode:'none', bgColor:'#F2F2F2',
+    shadow:false, customCard:false, cardColor:'#FFFFFF', scale:3,
+    showHeart:true, showLikes:true, showReply:true, showHide:false,
+    showTranslate:false, showReplies:true,
+    ttSize:22, tail:'bl'
+  };
+  // Só as preferências de aparência/exportação são lembradas entre sessões.
+  // Conteúdo (linhas, textos, avatares) nunca é guardado.
+  var PREFS = Shell.store('comentarios');
+  var PERSIST = ['platform','theme','lang','width','radius','pad','bgMode','bgColor',
+                 'shadow','customCard','cardColor','scale','showHeart','showLikes',
+                 'showReply','showHide','showTranslate','showReplies','ttSize','tail'];
+
+  var S = Object.assign({}, DEFAULTS);
+  (function restore(){
+    var saved = PREFS.get(null);
+    if(!saved || typeof saved !== 'object') return;
+    PERSIST.forEach(function(k){
+      if(saved[k] !== undefined && typeof saved[k] === typeof DEFAULTS[k]) S[k] = saved[k];
+    });
+  })();
+  function savePrefs(){
+    var out = {};
+    PERSIST.forEach(function(k){ out[k] = S[k]; });
+    PREFS.set(out);
+  }
+
+  function newRow(over){
+    return Object.assign({
+      username:'username', text:'', verified:false, ring:'none',
+      time:'2w', likes:'345', repliesCount:'4', liked:false,
+      avatar:{type:'none', img:null, seed:0}
+    }, over || {});
+  }
+
+  var rows = [ newRow({username:'noras_onroad', text:'When is the leopard print coming back in stock?'}) ];
+  var active = 0;
+  function row(){ return rows[active] || rows[0]; }
+
+  // ================= métricas =================
+  var IG = {padX:16, padY:14, av:32, ringGap:2.5, ringW:2.5, gap:12,
+            nameSize:13, timeSize:12, nameLine:18, textSize:13, textLine:17,
+            actSize:12, actLine:16, actGap:16, heart:16, likeSize:11, rightCol:34};
+  var TT = {padX:18, padTop:16, padBottom:16, av:40, gap:12,
+            replySize:14, replyLine:20, tailW:34, tailH:22};
+
+  function theme(){
+    if(S.theme === 'dark'){
+      if(S.platform === 'tt') return {card:'#161823', name:'#FFFFFF', text:'#FFFFFF', dim:'#A8A8B3',
+        dim2:'#8A8A96', line:'#3A3A44', avBg:'#2A2A33', avIcon:'#6E6E78', heart:'#FAFAFA'};
+      return {card:'#000000', name:'#FAFAFA', text:'#FAFAFA', dim:'#A8A8A8', dim2:'#8E8E8E',
+        line:'#363636', avBg:'#262626', avIcon:'#6E6E6E', heart:'#FAFAFA'};
+    }
+    if(S.platform === 'tt') return {card:'#FFFFFF', name:'#161823', text:'#161823', dim:'#9B9BA3',
+      dim2:'#74747E', line:'#E3E3E5', avBg:'#D9D9DE', avIcon:'#FFFFFF', heart:'#161823'};
+    return {card:'#FFFFFF', name:'#000000', text:'#262626', dim:'#737373', dim2:'#737373',
+      line:'#C7C7C7', avBg:'#DBDBDB', avIcon:'#FFFFFF', heart:'#262626'};
+  }
+
+  function font(size, weight){
+    return (weight||400)+' '+size+'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  }
+
+  // ================= quebra de linha =================
+  function breakWord(c, word, maxW, out){
+    var chunk = '', chars = Array.from(word), i, ch;
+    for(i=0;i<chars.length;i++){
+      ch = chars[i];
+      if(chunk && c.measureText(chunk+ch).width > maxW){ out.push(chunk); chunk = ch; }
+      else chunk += ch;
+    }
+    return chunk;
+  }
+  function wrapLines(c, text, maxW){
+    var out = [], paras = String(text).split('\n'), p, i, w, test, line;
+    for(p=0;p<paras.length;p++){
+      if(paras[p] === ''){ out.push(''); continue; }
+      var words = paras[p].split(/\s+/).filter(function(x){return x.length;});
+      line = '';
+      for(i=0;i<words.length;i++){
+        w = words[i];
+        test = line ? line+' '+w : w;
+        if(c.measureText(test).width <= maxW){ line = test; continue; }
+        if(line){ out.push(line); line = ''; }
+        line = (c.measureText(w).width > maxW) ? breakWord(c, w, maxW, out) : w;
+      }
+      out.push(line);
+    }
+    return out;
+  }
+  function ellipsize(c, text, maxW){
+    if(c.measureText(text).width <= maxW) return text;
+    var chars = Array.from(text), s = '';
+    for(var i=0;i<chars.length;i++){
+      if(c.measureText(s+chars[i]+'…').width > maxW) break;
+      s += chars[i];
+    }
+    return s + '…';
+  }
+
+  // ================= primitivas =================
+  function roundRect(c,x,y,w,h,r){
+    if(typeof c.roundRect === 'function'){ c.beginPath(); c.roundRect(x,y,w,h,r); return; }
+    r = Math.min(r, w/2, h/2);
+    c.beginPath();
+    c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.arcTo(x+w,y,x+w,y+r,r);
+    c.lineTo(x+w,y+h-r); c.arcTo(x+w,y+h,x+w-r,y+h,r);
+    c.lineTo(x+r,y+h); c.arcTo(x,y+h,x,y+h-r,r);
+    c.lineTo(x,y+r); c.arcTo(x,y,x+r,y,r); c.closePath();
+  }
+
+  function bubblePath(c,x,y,w,h,r,tail){
+    if(tail === 'none'){ roundRect(c,x,y,w,h,r); return; }
+    r = Math.min(r, w/2, h/2);
+    c.beginPath();
+    if(tail === 'bl'){
+      c.moveTo(x+r, y);
+      c.lineTo(x+w-r, y);           c.arcTo(x+w, y, x+w, y+r, r);
+      c.lineTo(x+w, y+h-r);         c.arcTo(x+w, y+h, x+w-r, y+h, r);
+      c.lineTo(x+TT.tailW, y+h);
+      c.lineTo(x, y+h+TT.tailH);
+      c.lineTo(x, y+r);             c.arcTo(x, y, x+r, y, r);
+    } else {
+      c.moveTo(x+r, y);
+      c.lineTo(x+w-r, y);           c.arcTo(x+w, y, x+w, y+r, r);
+      c.lineTo(x+w, y+h+TT.tailH);
+      c.lineTo(x+w-TT.tailW, y+h);
+      c.lineTo(x+r, y+h);           c.arcTo(x, y+h, x, y+h-r, r);
+      c.lineTo(x, y+r);             c.arcTo(x, y, x+r, y, r);
+    }
+    c.closePath();
+  }
+
+  function drawRing(c, cx, cy, r, type){
+    c.save();
+    c.lineWidth = IG.ringW;
+    if(type === 'gradient'){
+      var g = (typeof c.createConicGradient === 'function')
+        ? c.createConicGradient(-Math.PI/2, cx, cy)
+        : c.createLinearGradient(cx-r, cy+r, cx+r, cy-r);
+      g.addColorStop(0,'#FEDA75'); g.addColorStop(0.18,'#FA7E1E');
+      g.addColorStop(0.40,'#D62976'); g.addColorStop(0.62,'#962FBF');
+      g.addColorStop(0.82,'#4F5BD5'); g.addColorStop(1,'#FEDA75');
+      c.strokeStyle = g;
+    } else if(type === 'seen'){
+      c.strokeStyle = S.theme === 'dark' ? '#3C3C3C' : '#DBDBDB';
+    } else {
+      c.strokeStyle = '#4BC85B';
+    }
+    c.beginPath(); c.arc(cx, cy, r, 0, Math.PI*2); c.stroke();
+    c.restore();
+  }
+
+  function drawAvatar(c, r0, cx, cy, d, T){
+    var rad = d/2, av = r0.avatar;
+    c.save();
+    c.beginPath(); c.arc(cx, cy, rad, 0, Math.PI*2); c.closePath(); c.clip();
+    if(av.type === 'img' && av.img){
+      var iw = av.img.naturalWidth || av.img.width, ih = av.img.naturalHeight || av.img.height;
+      var k = Math.max(d/iw, d/ih);
+      c.drawImage(av.img, cx-iw*k/2, cy-ih*k/2, iw*k, ih*k);
+    } else if(av.type === 'gen'){
+      var pal = GEN_COLORS[av.seed % GEN_COLORS.length];
+      var g = c.createLinearGradient(cx-rad, cy-rad, cx+rad, cy+rad);
+      g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]);
+      c.fillStyle = g; c.fillRect(cx-rad, cy-rad, d, d);
+      var letter = (String(r0.username).replace(/[^a-z0-9]/gi,'')[0] || '?').toUpperCase();
+      c.fillStyle = 'rgba(255,255,255,.95)';
+      c.font = font(Math.round(d*0.46), 600);
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(letter, cx, cy + d*0.02);
+      c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+    } else {
+      c.fillStyle = T.avBg; c.fillRect(cx-rad, cy-rad, d, d);
+      c.fillStyle = T.avIcon;
+      c.beginPath(); c.arc(cx, cy-d*0.10, d*0.20, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(cx, cy+d*0.44, d*0.33, Math.PI, Math.PI*2); c.fill();
+    }
+    c.restore();
+  }
+
+  function drawVerified(c, cx, cy, size, color){
+    var r = size/2, pts = 12, i, ang, rad, x, y;
+    c.save();
+    c.fillStyle = color || '#0095F6';
+    c.beginPath();
+    for(i=0;i<pts*2;i++){
+      ang = (Math.PI/pts)*i - Math.PI/2;
+      rad = (i%2===0) ? r : r*0.84;
+      x = cx + Math.cos(ang)*rad; y = cy + Math.sin(ang)*rad;
+      if(i===0) c.moveTo(x,y); else c.lineTo(x,y);
+    }
+    c.closePath(); c.fill();
+    c.strokeStyle = '#FFFFFF';
+    c.lineWidth = Math.max(1, r*0.26);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath();
+    c.moveTo(cx - r*0.34, cy + r*0.02);
+    c.lineTo(cx - r*0.08, cy + r*0.28);
+    c.lineTo(cx + r*0.36, cy - r*0.26);
+    c.stroke();
+    c.restore();
+  }
+
+  function heartPath(c, cx, cy, s){
+    var w = s, h = s*0.92, x = cx - w/2, y = cy - h/2;
+    c.beginPath();
+    c.moveTo(x + w*0.5, y + h*0.98);
+    c.bezierCurveTo(x + w*1.12, y + h*0.58, x + w*0.94, y - h*0.20, x + w*0.5, y + h*0.24);
+    c.bezierCurveTo(x + w*0.06, y - h*0.20, x - w*0.12, y + h*0.58, x + w*0.5, y + h*0.98);
+    c.closePath();
+  }
+
+  // ================= layouts =================
+  function layoutIG(r0){
+    var ringOn = r0.ring !== 'none';
+    var avBox = ringOn ? (IG.av + 2*(IG.ringGap + IG.ringW)) : IG.av;
+    var contentX = IG.padX + avBox + IG.gap;
+    var rightCol = S.showHeart ? IG.rightCol : 0;
+    var textW = Math.max(60, S.width - contentX - rightCol - IG.padX);
+    mctx.font = font(IG.textSize, 400);
+    var lines = wrapLines(mctx, r0.text, textW);
+    var hasActions = S.showReply || S.showHide || S.showTranslate;
+    var contentH = IG.nameLine + 1 + lines.length*IG.textLine
+      + (hasActions ? 5 + IG.actLine : 0)
+      + (S.showReplies ? 6 + IG.actLine : 0);
+    return {ringOn:ringOn, avBox:avBox, contentX:contentX, textW:textW, lines:lines,
+            hasActions:hasActions, cardH:Math.round(IG.padY*2 + Math.max(avBox, contentH)),
+            extraH:0};
+  }
+
+  function layoutTT(r0){
+    var contentX = TT.padX + TT.av + TT.gap;
+    var textW = Math.max(60, S.width - contentX - TT.padX);
+    var textLine = Math.round(S.ttSize * 1.28);
+    mctx.font = font(S.ttSize, 700);
+    var lines = wrapLines(mctx, r0.text, textW);
+    var cardH = Math.round(TT.padTop + TT.replyLine + 6 + lines.length*textLine + TT.padBottom);
+    var avCY = TT.padTop + TT.replyLine + 6 + textLine/2;
+    cardH = Math.max(cardH, Math.round(avCY + TT.av/2 + TT.padBottom));
+    return {contentX:contentX, textW:textW, lines:lines, textLine:textLine,
+            avCY:avCY, cardH:cardH, extraH:(S.tail === 'none' ? 0 : TT.tailH)};
+  }
+
+  function layout(r0){ return S.platform === 'tt' ? layoutTT(r0) : layoutIG(r0); }
+
+  // ================= pintura =================
+  function paintIG(c, r0, L, x0, y0, T){
+    var cx = x0 + IG.padX + L.avBox/2, cy = y0 + IG.padY + L.avBox/2;
+    if(L.ringOn) drawRing(c, cx, cy, (L.avBox - IG.ringW)/2, r0.ring);
+    drawAvatar(c, r0, cx, cy, IG.av, T);
+
+    var tx = x0 + L.contentX, ty = y0 + IG.padY;
+    var nameY = ty + IG.nameLine/2 + 4.5;
+
+    c.fillStyle = T.name; c.font = font(IG.nameSize, 600);
+    c.fillText(r0.username, tx, nameY);
+    var cursor = tx + c.measureText(r0.username).width;
+    if(r0.verified){ drawVerified(c, cursor + 10, nameY - 4.5, 12); cursor += 16; }
+    if(r0.time){
+      c.fillStyle = T.dim; c.font = font(IG.timeSize, 400);
+      c.fillText(r0.time, cursor + 7, nameY);
+    }
+
+    c.fillStyle = T.text; c.font = font(IG.textSize, 400);
+    var lineY = ty + IG.nameLine + 1, i;
+    for(i=0;i<L.lines.length;i++) c.fillText(L.lines[i], tx, lineY + IG.textLine*i + IG.textLine/2 + 4.5);
+    var actY = lineY + L.lines.length*IG.textLine;
+
+    var lab = LABELS[S.lang] || LABELS.en;
+    if(L.hasActions){
+      c.fillStyle = T.dim; c.font = font(IG.actSize, 600);
+      var ax = tx, base = actY + 5 + IG.actLine/2 + 4, parts = [];
+      if(S.showReply) parts.push(lab.reply);
+      if(S.showHide) parts.push(lab.hide);
+      if(S.showTranslate) parts.push(lab.translate);
+      for(i=0;i<parts.length;i++){ c.fillText(parts[i], ax, base); ax += c.measureText(parts[i]).width + IG.actGap; }
+      actY = actY + 5 + IG.actLine;
+    }
+
+    if(S.showReplies){
+      var ry = actY + 6 + IG.actLine/2;
+      c.strokeStyle = T.line; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(tx, Math.round(ry)+0.5); c.lineTo(tx+24, Math.round(ry)+0.5); c.stroke();
+      c.fillStyle = T.dim; c.font = font(IG.actSize, 600);
+      c.fillText(lab.replies(String(r0.repliesCount).trim() || '0'), tx + 36, ry + 4);
+    }
+
+    if(S.showHeart){
+      var hx = x0 + S.width - IG.padX - IG.heart/2, hy = y0 + IG.padY + 9;
+      c.save();
+      if(r0.liked){ c.fillStyle = '#FF3040'; heartPath(c, hx, hy, IG.heart); c.fill(); }
+      else { c.strokeStyle = T.heart; c.lineWidth = 1.4; c.lineJoin = 'round'; heartPath(c, hx, hy, IG.heart*0.94); c.stroke(); }
+      c.restore();
+      if(S.showLikes && String(r0.likes).trim()){
+        c.fillStyle = T.dim; c.font = font(IG.likeSize, 400);
+        c.textAlign = 'center';
+        c.fillText(String(r0.likes), hx, hy + IG.heart/2 + 12);
+        c.textAlign = 'left';
+      }
+    }
+  }
+
+  function paintTT(c, r0, L, x0, y0, T){
+    var cx = x0 + TT.padX + TT.av/2, cy = y0 + L.avCY;
+    drawAvatar(c, r0, cx, cy, TT.av, T);
+
+    var tx = x0 + L.contentX, lab = LABELS[S.lang] || LABELS.en;
+    var ry = y0 + TT.padTop + TT.replyLine/2 + 5;
+
+    c.font = font(TT.replySize, 600);
+    var pw = c.measureText(lab.ttPrefix).width;
+    var nameMax = Math.max(30, L.textW - pw - c.measureText(lab.ttSuffix).width);
+    var nm = ellipsize(c, r0.username, nameMax);
+    c.fillStyle = T.dim;  c.fillText(lab.ttPrefix, tx, ry);
+    c.fillStyle = T.dim2; c.fillText(nm, tx + pw, ry);
+    var after = tx + pw + c.measureText(nm).width;
+    if(r0.verified){ drawVerified(c, after + 9, ry - 5, 13); after += 18; }
+    if(lab.ttSuffix){ c.fillStyle = T.dim; c.fillText(lab.ttSuffix, after, ry); }
+
+    c.fillStyle = T.text; c.font = font(S.ttSize, 700);
+    var top = y0 + TT.padTop + TT.replyLine + 6;
+    for(var i=0;i<L.lines.length;i++){
+      c.fillText(L.lines[i], tx, top + L.textLine*i + L.textLine/2 + S.ttSize*0.35);
+    }
+  }
+
+  // ================= render =================
+  function renderTo(canvas, r0, scale){
+    var c = canvas.getContext('2d');
+    var L = layout(r0), T = theme();
+    var pad = S.pad;
+    var W = S.width + pad*2;
+    var H = L.cardH + L.extraH + pad*2;
+    var k = scale;
+
+    canvas.width = Math.round(W*k);
+    canvas.height = Math.round(H*k);
+    c.setTransform(k,0,0,k,0,0);
+    c.clearRect(0,0,W,H);
+    c.textBaseline = 'alphabetic'; c.textAlign = 'left';
+
+    if(S.bgMode === 'color'){ c.fillStyle = S.bgColor; c.fillRect(0,0,W,H); }
+
+    var x0 = pad, y0 = pad;
+    var fill = S.customCard ? S.cardColor : T.card;
+
+    c.save();
+    if(S.shadow){ c.shadowColor = 'rgba(0,0,0,.22)'; c.shadowBlur = 22; c.shadowOffsetY = 6; }
+    c.fillStyle = fill;
+    if(S.platform === 'tt') bubblePath(c, x0, y0, S.width, L.cardH, S.radius, S.tail);
+    else roundRect(c, x0, y0, S.width, L.cardH, S.radius);
+    c.fill();
+    c.restore();
+
+    c.save();
+    if(S.platform === 'tt') bubblePath(c, x0, y0, S.width, L.cardH, S.radius, S.tail);
+    else roundRect(c, x0, y0, S.width, L.cardH, S.radius);
+    c.clip();
+    if(S.platform === 'tt') paintTT(c, r0, L, x0, y0, T);
+    else paintIG(c, r0, L, x0, y0, T);
+    c.restore();
+
+    return {w:W, h:H};
+  }
+
+  var saveTimer = null;
+  function queueSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePrefs, 400);
+  }
+
+  function render(){
+    queueSave();
+    var d = renderTo(cv, row(), S.scale);
+    cv.style.width = d.w + 'px';
+    document.getElementById('dims').textContent =
+      d.w + ' × ' + d.h + ' px  ·  export ' + cv.width + ' × ' + cv.height + ' px';
+    if(S.mode === 'bulk') syncThumbs();
+  }
+
+  // ================= UI =================
+  function $(id){ return document.getElementById(id); }
+  var toast = Shell.toast;
+
+  function applyVisibility(){
+    var tt = S.platform === 'tt';
+    document.body.classList.toggle('bulk', S.mode === 'bulk');
+    $('igActions').hidden = tt;
+    $('ttOptions').hidden = !tt;
+    $('igMeta').style.display = tt ? 'none' : '';
+    $('likedField').style.display = tt ? 'none' : '';
+    $('ringField').style.display = tt ? 'none' : '';
+    $('formatHint').textContent = tt
+      ? 'Resposta a comentário — o balão branco que aparece no vídeo.'
+      : 'Comentário de feed, com curtidas e respostas.';
+    $('rowTag').textContent = S.mode === 'bulk' ? ' — linha ' + (active+1) : '';
+  }
+
+  // Reescrever o value de um campo em foco pode mexer no cursor em alguns
+  // navegadores; por isso o campo ativo é sempre preservado.
+  function setField(id, value){
+    var el = $(id);
+    if(el === document.activeElement) return;
+    if(el.value !== value) el.value = value;
+  }
+
+  // Empurra o estado S para todos os controles do painel. Usado no boot
+  // (quando há preferências salvas) e no "Restaurar padrão".
+  function applySettingsToUI(){
+    ['showHeart','showLikes','showReply','showHide','showTranslate','showReplies','shadow','customCard']
+      .forEach(function(k){ $(k).checked = S[k]; });
+    $('lang').value = S.lang;
+    $('bgMode').value = S.bgMode;
+    $('bgColor').value = S.bgColor;
+    $('cardColor').value = S.cardColor;
+    $('tail').value = S.tail;
+    [['width','widthOut'],['radius','radiusOut'],['pad','padOut'],['ttSize','ttSizeOut']].forEach(function(pair){
+      $(pair[0]).value = S[pair[0]];
+      $(pair[1]).textContent = S[pair[0]] + ' px';
+    });
+    [['mode','mode'],['platform','platform'],['theme','theme']].forEach(function(pair){
+      Array.prototype.forEach.call(document.querySelectorAll('#' + pair[0] + ' button'), function(b){
+        b.setAttribute('aria-pressed', String(b.dataset.v === S[pair[1]]));
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#scale button'), function(b){
+      b.setAttribute('aria-pressed', String(parseInt(b.dataset.v,10) === S.scale));
+    });
+  }
+
+  function syncPanel(){
+    var r0 = row();
+    setField('username', r0.username);
+    setField('text', r0.text);
+    setField('time', r0.time);
+    setField('likes', r0.likes);
+    setField('repliesCount', r0.repliesCount);
+    $('ring').value = r0.ring;
+    $('verified').checked = r0.verified;
+    $('liked').checked = r0.liked;
+    var p = $('avatarPrev');
+    if(r0.avatar.type === 'img' && r0.avatar.img){ p.style.backgroundImage = 'url('+r0.avatar.img.src+')'; p.textContent = ''; }
+    else if(r0.avatar.type === 'gen'){
+      var pal = GEN_COLORS[r0.avatar.seed % GEN_COLORS.length];
+      p.style.backgroundImage = 'linear-gradient(135deg,'+pal[0]+','+pal[1]+')';
+      p.textContent = (String(r0.username).replace(/[^a-z0-9]/gi,'')[0] || '?').toUpperCase();
+    } else { p.style.backgroundImage = 'none'; p.textContent = '+'; }
+    applyVisibility();
+  }
+
+  function bindRowText(id, key){
+    $(id).addEventListener('input', function(){
+      row()[key] = this.value;
+      var el = document.querySelector('#tbody tr[data-i="'+active+'"] [data-k="'+key+'"]');
+      if(el && el.value !== this.value) el.value = this.value;
+      render();
+      if(key === 'username') syncPanel();
+    });
+  }
+  function bindRowCheck(id, key){ $(id).addEventListener('change', function(){ row()[key] = this.checked; render(); }); }
+  function bindRowSelect(id, key){ $(id).addEventListener('change', function(){ row()[key] = this.value; render(); }); }
+  function bindCheck(id, key){ $(id).addEventListener('change', function(){ S[key] = this.checked; render(); }); }
+  function bindSelect(id, key){ $(id).addEventListener('change', function(){ S[key] = this.value; render(); }); }
+  function bindRange(id, key, out, unit){
+    var el = $(id), o = $(out);
+    el.addEventListener('input', function(){ S[key] = parseInt(el.value,10); o.textContent = el.value+' '+unit; render(); });
+  }
+  function bindSeg(id, key, cast, after){
+    var wrap = $(id);
+    wrap.addEventListener('click', function(e){
+      var b = e.target.closest('button');
+      if(!b || b.disabled || !b.dataset.v) return;
+      Array.prototype.forEach.call(wrap.querySelectorAll('button'), function(x){ x.setAttribute('aria-pressed', String(x===b)); });
+      S[key] = cast ? cast(b.dataset.v) : b.dataset.v;
+      if(after) after();
+      render();
+    });
+  }
+
+  bindRowText('username','username');
+  bindRowText('text','text');
+  bindRowText('time','time');
+  bindRowText('likes','likes');
+  bindRowText('repliesCount','repliesCount');
+  bindRowSelect('ring','ring');
+  bindRowCheck('verified','verified');
+  bindRowCheck('liked','liked');
+
+  bindSelect('lang','lang');
+  bindSelect('bgMode','bgMode');
+  bindSelect('tail','tail');
+  bindCheck('showHeart','showHeart');
+  bindCheck('showLikes','showLikes');
+  bindCheck('showReply','showReply');
+  bindCheck('showHide','showHide');
+  bindCheck('showTranslate','showTranslate');
+  bindCheck('showReplies','showReplies');
+  bindCheck('shadow','shadow');
+  bindCheck('customCard','customCard');
+  bindRange('width','width','widthOut','px');
+  bindRange('radius','radius','radiusOut','px');
+  bindRange('pad','pad','padOut','px');
+  bindRange('ttSize','ttSize','ttSizeOut','px');
+  bindSeg('theme','theme');
+  bindSeg('scale','scale', function(v){ return parseInt(v,10); });
+  bindSeg('mode','mode', null, function(){
+    if(S.mode === 'bulk' && rows.length === 1 && !rows[0].text) rows.push(newRow());
+    renderTable(); syncPanel();
+  });
+  bindSeg('platform','platform', null, function(){
+    S.radius = S.platform === 'tt' ? 14 : 0;
+    $('radius').value = S.radius; $('radiusOut').textContent = S.radius + ' px';
+    syncPanel();
+  });
+  $('bgColor').addEventListener('input', function(){ S.bgColor = this.value; render(); });
+  $('cardColor').addEventListener('input', function(){ S.cardColor = this.value; render(); });
+
+  // ---------- avatar ----------
+  function loadImageInto(r0, file, done){
+    if(!file || file.type.indexOf('image/') !== 0){ toast('Esse arquivo não é uma imagem.'); return; }
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var img = new Image();
+      img.onload = function(){ r0.avatar = {type:'img', img:img, seed:0}; done && done(); };
+      img.onerror = function(){ toast('Não deu para abrir essa imagem.'); };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  function afterAvatar(){ syncPanel(); renderTable(); render(); }
+
+  $('pickAvatar').addEventListener('click', function(){ $('avatarFile').click(); });
+  $('avatarPrev').addEventListener('click', function(){ $('avatarFile').click(); });
+  $('avatarFile').addEventListener('change', function(){
+    if(this.files[0]) loadImageInto(row(), this.files[0], afterAvatar);
+    this.value = '';
+  });
+  $('genAvatar').addEventListener('click', function(){
+    var r0 = row();
+    r0.avatar = {type:'gen', img:null, seed:(r0.avatar.type === 'gen' ? r0.avatar.seed+1 : Math.floor(Math.random()*GEN_COLORS.length))};
+    afterAvatar();
+  });
+  $('clearAvatar').addEventListener('click', function(){ row().avatar = {type:'none', img:null, seed:0}; afterAvatar(); });
+  ['dragenter','dragover'].forEach(function(ev){ $('avatarPrev').addEventListener(ev, function(e){ e.preventDefault(); this.style.borderColor = '#7B8CFF'; }); });
+  ['dragleave','drop'].forEach(function(ev){ $('avatarPrev').addEventListener(ev, function(e){ e.preventDefault(); this.style.borderColor = ''; }); });
+  $('avatarPrev').addEventListener('drop', function(e){
+    if(e.dataTransfer && e.dataTransfer.files[0]) loadImageInto(row(), e.dataTransfer.files[0], afterAvatar);
+  });
+  window.addEventListener('paste', function(e){
+    var items = (e.clipboardData || {}).items || [];
+    for(var i=0;i<items.length;i++){
+      if(items[i].type.indexOf('image/') === 0){ loadImageInto(row(), items[i].getAsFile(), afterAvatar); break; }
+    }
+  });
+
+  // ---------- tabela (modo em lote) ----------
+  var pendingAvatarRow = -1;
+  $('rowAvatarFile').addEventListener('change', function(){
+    if(this.files[0] && rows[pendingAvatarRow]) loadImageInto(rows[pendingAvatarRow], this.files[0], afterAvatar);
+    this.value = '';
+  });
+
+  function thumbStyle(r0){
+    if(r0.avatar.type === 'img' && r0.avatar.img) return 'background-image:url('+r0.avatar.img.src+')';
+    if(r0.avatar.type === 'gen'){
+      var pal = GEN_COLORS[r0.avatar.seed % GEN_COLORS.length];
+      return 'background-image:linear-gradient(135deg,'+pal[0]+','+pal[1]+')';
+    }
+    return '';
+  }
+  function syncThumbs(){
+    Array.prototype.forEach.call(document.querySelectorAll('#tbody .thumb'), function(el){
+      var r0 = rows[parseInt(el.closest('tr').dataset.i,10)];
+      if(r0) el.setAttribute('style', thumbStyle(r0));
+    });
+  }
+
+  function renderTable(){
+    var tb = $('tbody');
+    tb.textContent = '';
+    $('emptyMsg').hidden = rows.length > 0;
+    $('rowCount').textContent = rows.length + (rows.length === 1 ? ' linha' : ' linhas');
+    rows.forEach(function(r0, i){
+      var tr = document.createElement('tr');
+      tr.dataset.i = i;
+      if(i === active) tr.className = 'active';
+      tr.innerHTML =
+        '<td class="idx">'+String(i+1).padStart(2,'0')+'</td>'+
+        '<td><input type="text" data-k="username" spellcheck="false"></td>'+
+        '<td><input type="text" data-k="text" spellcheck="false"></td>'+
+        '<td><label class="check" style="padding:0"><input type="checkbox" data-k="verified"></label></td>'+
+        '<td><div class="cell-av"><span class="thumb" data-a="pick" title="Escolher foto"></span>'+
+          '<button class="btn icon" type="button" data-a="gen" title="Gerar avatar colorido">⤫</button>'+
+          '<button class="btn icon ghost" type="button" data-a="clearav" title="Remover foto">×</button></div></td>'+
+        '<td><div class="cell-actions">'+
+          '<button class="btn sm" type="button" data-a="dup" title="Duplicar">⧉</button>'+
+          '<button class="btn sm" type="button" data-a="png" title="Baixar PNG desta linha">↓</button>'+
+          '<button class="btn sm ghost" type="button" data-a="del" title="Excluir">🗑</button>'+
+        '</div></td>';
+      tr.querySelector('[data-k="username"]').value = r0.username;
+      tr.querySelector('[data-k="text"]').value = r0.text;
+      tr.querySelector('[data-k="verified"]').checked = r0.verified;
+      tr.querySelector('.thumb').setAttribute('style', thumbStyle(r0));
+      tb.appendChild(tr);
+    });
+  }
+
+  function setActive(i){
+    if(i < 0 || i >= rows.length) return;
+    active = i;
+    Array.prototype.forEach.call(document.querySelectorAll('#tbody tr'), function(tr){
+      tr.classList.toggle('active', parseInt(tr.dataset.i,10) === active);
+    });
+    syncPanel(); render();
+  }
+
+  $('tbody').addEventListener('input', function(e){
+    var tr = e.target.closest('tr'); if(!tr) return;
+    var i = parseInt(tr.dataset.i,10), k = e.target.dataset.k;
+    if(!k) return;
+    rows[i][k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    if(i === active) syncPanel();
+    setActive(i);
+  });
+  $('tbody').addEventListener('change', function(e){
+    if(e.target.dataset.k === 'verified'){
+      var tr = e.target.closest('tr');
+      rows[parseInt(tr.dataset.i,10)].verified = e.target.checked;
+      setActive(parseInt(tr.dataset.i,10));
+    }
+  });
+  $('tbody').addEventListener('click', function(e){
+    var tr = e.target.closest('tr'); if(!tr) return;
+    var i = parseInt(tr.dataset.i,10);
+    var a = e.target.closest('[data-a]');
+    if(!a){ setActive(i); return; }
+    var act = a.dataset.a;
+    active = i; // qualquer ação na linha também passa o preview para ela
+    if(act === 'pick'){ pendingAvatarRow = i; $('rowAvatarFile').click(); }
+    else if(act === 'gen'){
+      rows[i].avatar = {type:'gen', img:null, seed:(rows[i].avatar.type==='gen' ? rows[i].avatar.seed+1 : Math.floor(Math.random()*GEN_COLORS.length))};
+      renderTable();
+    }
+    else if(act === 'clearav'){ rows[i].avatar = {type:'none', img:null, seed:0}; renderTable(); }
+    else if(act === 'dup'){ rows.splice(i+1, 0, Object.assign({}, rows[i], {avatar:Object.assign({}, rows[i].avatar)})); active = i+1; renderTable(); }
+    else if(act === 'del'){
+      if(rows.length === 1){ toast('Precisa sobrar pelo menos uma linha.'); return; }
+      rows.splice(i,1); if(active >= rows.length) active = rows.length-1; renderTable();
+    }
+    else if(act === 'png'){ downloadRow(i); return; }
+    setActive(Math.min(active, rows.length-1));
+  });
+
+  $('addRow').addEventListener('click', function(){ rows.push(newRow()); active = rows.length-1; renderTable(); setActive(active); });
+
+  // ---------- CSV ----------
+  function parseCSV(text){
+    var out = [], row0 = [], cur = '', q = false, i, c;
+    for(i=0;i<text.length;i++){
+      c = text[i];
+      if(q){
+        if(c === '"'){ if(text[i+1] === '"'){ cur += '"'; i++; } else q = false; }
+        else cur += c;
+      } else if(c === '"'){ q = true; }
+      else if(c === ',' || c === ';'){ row0.push(cur); cur = ''; }
+      else if(c === '\n'){ row0.push(cur); out.push(row0); row0 = []; cur = ''; }
+      else if(c !== '\r'){ cur += c; }
+    }
+    if(cur !== '' || row0.length){ row0.push(cur); out.push(row0); }
+    return out.filter(function(r){ return r.some(function(x){ return String(x).trim() !== ''; }); });
+  }
+
+  var CSV_MAP = {
+    username:['usuario','usuário','username','user','perfil'],
+    text:['comentario','comentário','comment','texto','text'],
+    verified:['verificado','verified'],
+    time:['tempo','time'],
+    likes:['curtidas','likes'],
+    repliesCount:['respostas','replies']
+  };
+  function colIndex(header){
+    var map = {};
+    header.forEach(function(h, i){
+      var k = String(h).trim().toLowerCase();
+      Object.keys(CSV_MAP).forEach(function(field){
+        if(CSV_MAP[field].indexOf(k) !== -1) map[field] = i;
+      });
+    });
+    return map;
+  }
+  function truthy(v){ return /^(1|true|sim|yes|x|v)$/i.test(String(v).trim()); }
+
+  $('importCsv').addEventListener('click', function(){ $('csvFile').click(); });
+  $('csvFile').addEventListener('change', function(){
+    var f = this.files[0]; this.value = '';
+    if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var data = parseCSV(String(ev.target.result));
+      if(!data.length){ toast('O CSV está vazio.'); return; }
+      var map = colIndex(data[0]);
+      var start = Object.keys(map).length ? 1 : 0;
+      if(!Object.keys(map).length) map = {username:0, text:1, verified:2};
+      var added = [];
+      for(var i=start;i<data.length;i++){
+        var d = data[i];
+        var r0 = newRow({
+          username: (map.username != null ? d[map.username] : '') || 'username',
+          text: (map.text != null ? d[map.text] : '') || ''
+        });
+        if(map.verified != null) r0.verified = truthy(d[map.verified]);
+        if(map.time != null && d[map.time]) r0.time = d[map.time];
+        if(map.likes != null && d[map.likes]) r0.likes = d[map.likes];
+        if(map.repliesCount != null && d[map.repliesCount]) r0.repliesCount = d[map.repliesCount];
+        added.push(r0);
+      }
+      if(!added.length){ toast('Nenhuma linha encontrada no CSV.'); return; }
+      if(rows.length === 1 && !rows[0].text) rows = added; else rows = rows.concat(added);
+      active = 0; renderTable(); setActive(0);
+      toast(added.length + ' linha(s) importada(s).');
+    };
+    reader.readAsText(f, 'utf-8');
+  });
+
+  $('templateCsv').addEventListener('click', function(){
+    var csv = 'usuario,comentario,verificado,tempo,curtidas,respostas\n' +
+      'noras_onroad,"When is the leopard print coming back in stock?",nao,2w,345,4\n' +
+      'sarah.jm,"Just ordered my second one 😍",sim,1w,128,2\n';
+    saveBlob(new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'}), 'modelo-comentarios.csv');
+  });
+
+  // ---------- export ----------
+  var saveBlob = Shell.saveBlob;
+  function safeName(s){ return Shell.safeName(s, 'comentario'); }
+  function fileFor(r0, i){
+    return (i == null ? '' : String(i+1).padStart(2,'0') + '-') + (S.platform==='tt'?'tiktok':'instagram') + '-' + safeName(r0.username) + '.png';
+  }
+
+  var canvasBlob = Shell.canvasBlob;
+
+  function downloadRow(i){
+    var off = document.createElement('canvas');
+    renderTo(off, rows[i], S.scale);
+    canvasBlob(off).then(function(b){ saveBlob(b, fileFor(rows[i], i)); toast('PNG salvo.'); })
+      .catch(function(){ toast('Não foi possível gerar o PNG.'); });
+  }
+
+  $('download').addEventListener('click', function(){
+    canvasBlob(cv).then(function(b){ saveBlob(b, fileFor(row(), null)); toast('PNG salvo.'); })
+      .catch(function(){ toast('Não foi possível gerar o PNG.'); });
+  });
+
+  $('copy').addEventListener('click', function(){
+    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){ toast('Este navegador não copia imagens. Use “Baixar PNG”.'); return; }
+    canvasBlob(cv).then(function(b){
+      return navigator.clipboard.write([new ClipboardItem({'image/png': b})]);
+    }).then(function(){ toast('Imagem copiada.'); })
+      .catch(function(){ toast('O navegador bloqueou a cópia. Use “Baixar PNG”.'); });
+  });
+
+  // ---------- ZIP (armazenado, sem compressão) ----------
+  var CRC = (function(){
+    var t = new Uint32Array(256), n, c, k;
+    for(n=0;n<256;n++){ c = n; for(k=0;k<8;k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(b){
+    var c = 0xFFFFFFFF;
+    for(var i=0;i<b.length;i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function dosStamp(){
+    var d = new Date();
+    return {
+      time: (d.getHours() << 11) | (d.getMinutes() << 5) | (Math.floor(d.getSeconds()/2)),
+      date: ((Math.max(1980, d.getFullYear()) - 1980) << 9) | ((d.getMonth()+1) << 5) | d.getDate()
+    };
+  }
+  function makeZip(files){
+    var enc = new TextEncoder(), parts = [], central = [], offset = 0, cdSize = 0;
+    var st = dosStamp();
+    files.forEach(function(f){
+      var name = enc.encode(f.name), crc = crc32(f.data), len = f.data.length;
+      var lh = new Uint8Array(30 + name.length), dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0, true);
+      dv.setUint16(8, 0, true); dv.setUint16(10, st.time, true); dv.setUint16(12, st.date, true);
+      dv.setUint32(14, crc, true); dv.setUint32(18, len, true); dv.setUint32(22, len, true);
+      dv.setUint16(26, name.length, true); dv.setUint16(28, 0, true);
+      lh.set(name, 30);
+      parts.push(lh, f.data);
+
+      var ch = new Uint8Array(46 + name.length), cvw = new DataView(ch.buffer);
+      cvw.setUint32(0, 0x02014b50, true); cvw.setUint16(4, 20, true); cvw.setUint16(6, 20, true);
+      cvw.setUint16(8, 0, true); cvw.setUint16(10, 0, true); cvw.setUint16(12, st.time, true); cvw.setUint16(14, st.date, true);
+      cvw.setUint32(16, crc, true); cvw.setUint32(20, len, true); cvw.setUint32(24, len, true);
+      cvw.setUint16(28, name.length, true); cvw.setUint32(42, offset, true);
+      ch.set(name, 46);
+      central.push(ch); cdSize += ch.length;
+      offset += lh.length + len;
+    });
+    var eocd = new Uint8Array(22), ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+    ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [eocd]), {type:'application/zip'});
+  }
+
+  $('downloadAll').addEventListener('click', function(){
+    var btn = this, off = document.createElement('canvas');
+    btn.disabled = true; btn.textContent = 'Gerando…';
+    var seq = Promise.resolve(), files = [], used = {};
+    rows.forEach(function(r0, i){
+      seq = seq.then(function(){
+        renderTo(off, r0, S.scale);
+        return canvasBlob(off).then(function(b){ return b.arrayBuffer(); }).then(function(ab){
+          var name = fileFor(r0, i), n = 1;
+          while(used[name]) name = fileFor(r0, i).replace(/\.png$/, '-' + (++n) + '.png');
+          used[name] = true;
+          files.push({name:name, data:new Uint8Array(ab)});
+        });
+      });
+    });
+    seq.then(function(){
+      saveBlob(makeZip(files), 'comentarios-' + (S.platform==='tt'?'tiktok':'instagram') + '.zip');
+      toast(files.length + ' imagem(ns) no .zip.');
+    }).catch(function(){ toast('Falhou ao gerar o .zip.'); })
+      .then(function(){ btn.disabled = false; btn.textContent = 'Baixar tudo (.zip)'; });
+  });
+
+  // ---------- reset ----------
+  $('reset').addEventListener('click', function(){
+    PREFS.clear();
+    var keepMode = S.mode, keepPlatform = S.platform;
+    S = Object.assign({}, DEFAULTS, {mode:keepMode, platform:keepPlatform,
+      radius: keepPlatform === 'tt' ? 14 : 0});
+    rows = [ newRow({username:'noras_onroad', text:'When is the leopard print coming back in stock?'}) ];
+    active = 0;
+    applySettingsToUI();
+    renderTable(); syncPanel(); render();
+    toast('Campos restaurados.');
+  });
+
+  applySettingsToUI();
+  renderTable(); syncPanel(); render();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>

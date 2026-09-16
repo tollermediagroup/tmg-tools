@@ -1,0 +1,14 @@
+{
+  // Sem este arquivo, o "npx wrangler deploy" do painel falha com
+  // "Missing entry-point to Worker script or to assets directory":
+  // ele não tem como adivinhar o que publicar.
+  //
+  // Não existe "main" aqui de propósito — não há código de servidor,
+  // é só um site estático servido na borda.
+  "name": "tmg-tools",
+  "compatibility_date": "2026-09-16",
+  "assets": {
+    "directory": "./",
+    "not_found_handling": "404-page"
+  }
+}

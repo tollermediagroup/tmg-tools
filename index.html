@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toolbench — ferramentas de UGC</title>
+<meta name="description" content="Bancada de ferramentas para edição e criação de UGC: comentários, text box, LUT e áreas seguras. Tudo roda no navegador.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/ui.css">
+</head>
+<body>
+
+<div id="topbar"></div>
+<script src="assets/shell.js"></script>
+
+<main class="home">
+  <div class="home-head">
+    <div class="eyebrow">toller media group</div>
+    <h1>A bancada de ferramentas do estúdio.</h1>
+    <p>Tudo que eu monto na mão toda semana, resolvido em um clique. Nenhum arquivo sai do seu computador: as ferramentas rodam inteiras no navegador, sem upload, sem conta, sem servidor.</p>
+  </div>
+
+  <div class="tool-grid" id="grid"></div>
+
+  <div class="home-foot">
+    <span>Toolbench · uso interno TMG</span>
+    <span>funciona offline depois de carregar</span>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var grid = document.getElementById('grid');
+  Shell.TOOLS.forEach(function (t) {
+    var a = document.createElement('a');
+    a.className = 'tool-card';
+    a.href = t.href;
+
+    var ico = document.createElement('div');
+    ico.className = 'ico';
+    ico.setAttribute('aria-hidden', 'true');
+    ico.textContent = t.icon;
+
+    var h = document.createElement('h2');
+    h.textContent = t.title;
+
+    var p = document.createElement('p');
+    p.textContent = t.desc;
+
+    var m = document.createElement('div');
+    m.className = 'meta';
+    m.textContent = t.meta;
+
+    a.append(ico, h, p, m);
+    grid.appendChild(a);
+  });
+})();
+</script>
+</body>
+</html>
