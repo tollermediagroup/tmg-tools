@@ -7,7 +7,7 @@
 <meta name="description" content="Legenda estilo TikTok e Reels: uma caixa por linha, com largura própria e sem emenda entre elas.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Anton&family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Anton&family=Archivo+Black&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@600;700;800;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="ui.css">
 <style>
   .app{display:grid;grid-template-columns:338px 1fr;height:calc(100dvh - var(--topbar-h));min-height:0}
@@ -171,6 +171,7 @@
             <option value="Inter">Inter</option>
             <option value="Archivo Black">Archivo Black</option>
             <option value="Anton">Anton</option>
+            <option value="EB Garamond">EB Garamond</option>
             <option value="Montserrat">Montserrat</option>
             <option value="Poppins">Poppins</option>
             <option value="Arial">Arial (sistema)</option>
@@ -189,6 +190,13 @@
       <label class="f"><span>Tamanho</span><div class="range"><input type="range" id="fontSize" min="18" max="160" step="1"><output id="fontSizeOut"></output></div></label>
       <label class="f"><span>Espaçamento entre letras</span><div class="range"><input type="range" id="tracking" min="-4" max="12" step="0.5"><output id="trackingOut"></output></div></label>
       <label class="check"><input type="checkbox" id="uppercase"> Tudo em maiúsculas</label>
+      <div class="file-row" style="margin-top:12px">
+        <button class="btn sm" type="button" id="pickFont">Subir fonte</button>
+        <button class="btn sm ghost" type="button" id="clearFont">Remover</button>
+        <span class="meta name" id="fontName">nenhuma</span>
+      </div>
+      <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
+      <p class="hint">Aceita .ttf, .otf, .woff e .woff2. A fonte fica só nesta aba: recarregar a página descarrega ela. Se o arquivo só tiver um peso, os outros saem simulados pelo navegador.</p>
     </fieldset>
 
     <fieldset>
@@ -303,6 +311,17 @@
       if(saved[k] !== undefined && typeof saved[k] === typeof DEFAULTS[k]) S[k] = saved[k];
     });
   })();
+  // A fonte própria vive só na sessão. Se a preferência salva apontar para ela
+  // (ou para qualquer família que saiu da lista), volta para o padrão em vez de
+  // desenhar com fallback silencioso.
+  function validarFonte(){
+    var existe = Array.prototype.some.call(
+      document.getElementById('fontFamily').options,
+      function(o){ return o.value === S.fontFamily; }
+    );
+    if(!existe) S.fontFamily = DEFAULTS.fontFamily;
+  }
+
   function savePrefs(){
     var out = {};
     Object.keys(DEFAULTS).forEach(function(k){ if(!NO_PERSIST[k]) out[k] = S[k]; });
@@ -494,6 +513,22 @@
 
   /* =================== render =================== */
 
+  /* =================== carregamento de fonte =================== */
+  // O navegador só baixa o arquivo de uma fonte web quando ela é usada pela
+  // primeira vez. O canvas não espera por isso: desenha na hora, cai no
+  // fallback, e o texto sai com a fonte errada até algo forçar um novo
+  // desenho. Por isso toda troca de fonte ou de peso pede o carregamento
+  // explicitamente e redesenha quando ele termina.
+  var fontReq = 0;
+  function ensureFont(){
+    if(!document.fonts || !document.fonts.load) return;
+    var id = ++fontReq;
+    var spec = fontSpec();
+    document.fonts.load(spec, displayText() || 'A').then(function(){
+      if(id === fontReq) render();   // só o pedido mais recente redesenha
+    }).catch(function(){});
+  }
+
   var pending = false;
   function render(){
     if(pending) return;
@@ -577,8 +612,8 @@
   }
 
   $('text').addEventListener('input', function(){ S.text = this.value; render(); });
-  $('fontFamily').addEventListener('change', function(){ S.fontFamily = this.value; render(); });
-  $('fontWeight').addEventListener('change', function(){ S.fontWeight = this.value; render(); });
+  $('fontFamily').addEventListener('change', function(){ S.fontFamily = this.value; render(); ensureFont(); });
+  $('fontWeight').addEventListener('change', function(){ S.fontWeight = this.value; render(); ensureFont(); });
   $('uppercase').addEventListener('change', function(){ S.uppercase = this.checked; render(); });
   $('textColor').addEventListener('input', function(){ S.textColor = this.value; render(); });
   $('boxColor').addEventListener('input', function(){ S.boxColor = this.value; render(); });
@@ -601,8 +636,74 @@
       Object.assign(S, PRESETS[name]);
       syncControls();
       render();
+      ensureFont();   // atalhos também trocam a família
     });
     $('presets').appendChild(b);
+  });
+
+  /* ---------- fonte própria ---------- */
+  // A fonte é registrada em memória via FontFace e passa a valer tanto no
+  // preview quanto no PNG exportado, já que os dois usam o mesmo canvas.
+  var customFont = null;   // {family, face}
+
+  function familyFromFile(name){
+    var base = name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+    return (base || 'Fonte própria').slice(0, 40);
+  }
+
+  function dropCustomFont(){
+    if(!customFont) return;
+    try { document.fonts.delete(customFont.face); } catch(e) {}
+    var opt = $('fontFamily').querySelector('option[data-custom]');
+    if(opt) opt.remove();
+    customFont = null;
+  }
+
+  function loadCustomFont(file){
+    if(typeof FontFace === 'undefined' || !file){
+      Shell.toast('Este navegador não aceita fonte própria.');
+      return;
+    }
+    file.arrayBuffer().then(function(buf){
+      var family = familyFromFile(file.name);
+      var face = new FontFace(family, buf);
+      return face.load().then(function(loaded){
+        dropCustomFont();
+        document.fonts.add(loaded);
+        customFont = {family:family, face:loaded};
+
+        var opt = document.createElement('option');
+        opt.value = family;
+        opt.textContent = family;
+        opt.dataset.custom = '1';
+        $('fontFamily').appendChild(opt);
+
+        S.fontFamily = family;
+        $('fontFamily').value = family;
+        $('fontName').textContent = file.name;
+        render();
+      });
+    }).catch(function(){
+      // Arquivo corrompido, formato não suportado ou fonte protegida.
+      Shell.toast('Não deu para ler essa fonte.');
+    });
+  }
+
+  $('pickFont').addEventListener('click', function(){ $('fontFile').click(); });
+  $('fontFile').addEventListener('change', function(){
+    if(this.files[0]) loadCustomFont(this.files[0]);
+    this.value = '';
+  });
+  $('clearFont').addEventListener('click', function(){
+    var usando = customFont && S.fontFamily === customFont.family;
+    dropCustomFont();
+    $('fontName').textContent = 'nenhuma';
+    if(usando){
+      S.fontFamily = DEFAULTS.fontFamily;
+      $('fontFamily').value = S.fontFamily;
+      render();
+      ensureFont();
+    }
   });
 
   /* ---------- frame de referência ---------- */
@@ -732,10 +833,13 @@
   });
 
   /* ---------- boot ---------- */
+  validarFonte();
   syncControls();
   render();
+  applyZoom();
   // As fontes da web chegam depois do primeiro frame; sem isso a primeira
   // medição sai com a fonte de fallback e a quebra de linha muda sozinha.
+  ensureFont();
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
 })();
 </script>
