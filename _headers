@@ -1,10 +1,14 @@
-# Cloudflare Pages lê este arquivo automaticamente. Deixe-o na raiz do repo.
+# Este arquivo precisa ficar DENTRO de public/, junto com o site.
+# Fora da pasta de assets a plataforma não o enxerga.
 #
 # ui.css e shell.js não têm hash no nome: se o navegador guardar a versão
 # antiga, você empurra uma correção e continua vendo o site velho. Aqui eles
-# ficam em cache no edge, mas o navegador sempre confere se mudou antes de usar.
+# ficam em cache na borda, mas o navegador sempre confere se mudou antes de usar.
 
-/assets/*
+/*.css
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.js
   Cache-Control: public, max-age=0, must-revalidate
 
 /*.html

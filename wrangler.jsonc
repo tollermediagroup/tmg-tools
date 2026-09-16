@@ -1,14 +1,16 @@
 {
-  // Sem este arquivo, o "npx wrangler deploy" do painel falha com
-  // "Missing entry-point to Worker script or to assets directory":
-  // ele não tem como adivinhar o que publicar.
+  // O site mora em public/. Isto NÃO é firula de organização: é o que
+  // impede o .git de ser publicado.
   //
-  // Não existe "main" aqui de propósito — não há código de servidor,
-  // é só um site estático servido na borda.
+  // Antes, com "directory": "./", o wrangler tratava a raiz do repositório
+  // inteira como conteúdo do site — e o .git está na raiz. Dava para tapar
+  // isso com um .assetsignore, mas ele só funciona se o nome tiver o ponto
+  // na frente, e a interface web do GitHub costuma perder esse ponto.
+  // Apontando para uma subpasta, o .git fica fora por construção.
   "name": "tmg-tools",
   "compatibility_date": "2026-09-16",
   "assets": {
-    "directory": "./",
+    "directory": "./public",
     "not_found_handling": "404-page"
   }
 }
