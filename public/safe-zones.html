@@ -79,13 +79,19 @@
   .stage-bar .spacer{flex:1}
   .meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
   .canvas-wrap{
-    flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:24px;
+    flex:1;min-height:0;overflow:auto;display:flex;padding:24px;
+    /* flex + margin:auto no canvas centraliza SEM cortar o topo e a
+       esquerda quando o zoom passa do tamanho da janela; grid com
+       place-items:center corta. */
     background:repeating-conic-gradient(#191D25 0% 25%,#14181F 0% 50%) 50% / 22px 22px;
   }
   #preview{
-    display:block;max-width:100%;max-height:100%;width:auto;height:auto;
+    display:block;margin:auto;
     box-shadow:0 0 0 1px rgba(255,255,255,.07),0 22px 64px rgba(0,0,0,.6);border-radius:4px;
   }
+  .zoom{display:flex;align-items:center;gap:9px;flex:none}
+  .zoom input[type=range]{width:104px;flex:none}
+  .zoom output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:38px;text-align:right}
   .stage-foot{display:flex;align-items:center;gap:14px;padding:14px 20px;border-top:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
   .stage-foot .note{font-size:12px;color:var(--ink-faint);flex:1;min-width:220px;line-height:1.5}
 
@@ -155,6 +161,11 @@
         <button type="button" data-v="1080x1920">9:16</button>
         <button type="button" data-v="1080x1350">4:5</button>
         <button type="button" data-v="1080x1080">1:1</button>
+      </div>
+      <div class="zoom">
+        <button class="btn ghost sm" type="button" id="zoomFit" title="Encaixar o quadro inteiro na tela">Ajustar</button>
+        <input type="range" id="zoom" min="5" max="200" step="1" value="100" aria-label="Zoom do preview">
+        <output id="zoomOut">100%</output>
       </div>
       <span class="spacer"></span>
       <span class="meta" id="dims">—</span>
@@ -386,6 +397,7 @@
       if(cv.width !== S.frameW || cv.height !== S.frameH){
         cv.width = S.frameW;
         cv.height = S.frameH;
+        applyZoom();   // trocou de proporção: reencaixa na tela
       }
       var safe = draw(ctx, S.frameW, S.frameH, {solidBase:true});
       $('dims').textContent = S.frameW + ' × ' + S.frameH + ' px';
@@ -519,11 +531,56 @@
       .catch(function(){ Shell.toast('O navegador bloqueou a cópia. Use o botão de baixar.'); });
   });
 
+
+  /* =================== zoom do preview =================== */
+  // O canvas tem o tamanho real do quadro (1080×1920, por exemplo), que não
+  // cabe na tela de um notebook. Aqui o tamanho de EXIBIÇÃO é controlado por
+  // CSS; os pixels do canvas e do PNG exportado não mudam.
+  var wrapEl = document.querySelector('.canvas-wrap');
+  var zoomMode = 'fit';   // 'fit' acompanha a janela; 'manual' respeita o slider
+  var zoomPct = 100;
+
+  // Maior zoom em que o quadro inteiro ainda cabe na área visível.
+  function fitPct(){
+    var folga = 48;
+    var w = Math.max(120, wrapEl.clientWidth - folga);
+    var h = Math.max(120, wrapEl.clientHeight - folga);
+    return Math.min(w / S.frameW, h / S.frameH) * 100;
+  }
+
+  function applyZoom(){
+    var pct = zoomMode === 'fit' ? fitPct() : zoomPct;
+    pct = Math.min(200, Math.max(5, pct));
+    cv.style.width = (S.frameW * pct / 100) + 'px';
+    cv.style.height = (S.frameH * pct / 100) + 'px';
+    var r = Math.round(pct);
+    if(document.activeElement !== $('zoom')) $('zoom').value = r;
+    $('zoomOut').textContent = r + '%';
+  }
+
+  $('zoom').addEventListener('input', function(){
+    zoomMode = 'manual';
+    zoomPct = parseFloat(this.value);
+    applyZoom();
+  });
+  $('zoomFit').addEventListener('click', function(){
+    zoomMode = 'fit';
+    applyZoom();
+  });
+
+  var resizeTick = false;
+  window.addEventListener('resize', function(){
+    if(zoomMode !== 'fit' || resizeTick) return;
+    resizeTick = true;
+    requestAnimationFrame(function(){ resizeTick = false; applyZoom(); });
+  });
+
   /* ---------- boot ---------- */
   segSync('platform', S.platform);
   segSync('ratio', S.frameW + 'x' + S.frameH);
   renderZoneList();
   render();
+  applyZoom();
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
 })();
 </script>
