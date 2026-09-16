@@ -1,0 +1,5 @@
+# Cache local que o wrangler cria ao rodar na sua máquina.
+# Sem isto ele acaba commitado e depois publicado junto com o site.
+.wrangler/
+node_modules/
+.DS_Store

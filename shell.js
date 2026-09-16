@@ -10,7 +10,7 @@
   var TOOLS = [
     {
       id: 'comentarios',
-      href: 'tools/comentarios.html',
+      href: 'comentarios.html',
       nav: 'Comentários',
       title: 'Gerador de comentários',
       desc: 'Comentários do Instagram e do TikTok em PNG transparente, um por vez ou em lote via CSV.',
@@ -19,7 +19,7 @@
     },
     {
       id: 'textbox',
-      href: 'tools/textbox.html',
+      href: 'textbox.html',
       nav: 'Text box',
       title: 'Gerador de text box',
       desc: 'Legenda estilo TikTok e Reels com uma caixa por linha, larguras independentes e sem emenda.',
@@ -28,7 +28,7 @@
     },
     {
       id: 'luma',
-      href: 'tools/luma-grade.html',
+      href: 'luma-grade.html',
       nav: 'Luma Grade',
       title: 'Luma Grade',
       desc: 'Transforma uma imagem de referência em LUT .cube sob medida para Premiere, DaVinci e CapCut.',
@@ -37,7 +37,7 @@
     },
     {
       id: 'safezone',
-      href: 'tools/safe-zones.html',
+      href: 'safe-zones.html',
       nav: 'Áreas seguras',
       title: 'Áreas seguras',
       desc: 'Confere se a legenda cai atrás da interface do TikTok, Reels ou Shorts antes de exportar.',
@@ -47,9 +47,10 @@
   ];
 
   /* ---------- caminho relativo ---------- */
-  // Páginas de ferramenta vivem em /tools, a home vive na raiz.
+  // Todos os arquivos ficam na raiz do site, então não há prefixo a montar.
+  // Se um dia as ferramentas voltarem para subpastas, é só esta função que muda.
   function base() {
-    return /\/tools\//.test(global.location.pathname) ? '../' : '';
+    return '';
   }
 
   /* ---------- topbar ---------- */

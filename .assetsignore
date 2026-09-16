@@ -1,0 +1,17 @@
+# ATENÇÃO: o nome do arquivo começa com PONTO — .assetsignore
+# No deploy anterior ele subiu como "assetsignore" (sem o ponto) e por isso
+# não valeu de nada: o .git inteiro foi publicado junto com o site.
+#
+# Como o site é servido a partir da raiz do repositório, tudo que está aqui
+# viraria arquivo público. Esta lista tira do ar o que é de bastidor.
+#
+# O _headers NÃO entra aqui: ele é lido pela plataforma no deploy e já não
+# é publicado como arquivo.
+
+.git
+.github
+.gitignore
+.assetsignore
+.wrangler
+wrangler.jsonc
+README.md
