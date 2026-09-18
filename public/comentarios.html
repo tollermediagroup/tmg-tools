@@ -172,6 +172,16 @@
     <fieldset>
       <legend>Comentário</legend>
       <label class="f"><span>Texto</span><textarea id="text" spellcheck="false"></textarea></label>
+      <label class="f"><span>Trecho a destacar</span><input type="text" id="hl" placeholder="cole ou selecione no texto acima"></label>
+      <div class="file-row" style="margin:-6px 0 14px">
+        <button class="btn sm ghost" type="button" id="hlFromSel">Usar seleção</button>
+        <button class="btn sm ghost" type="button" id="hlClear">Limpar</button>
+      </div>
+      <div class="row2">
+        <div class="color-pair"><input type="color" id="hlColor"><span>Cor do marcador</span></div>
+      </div>
+      <label class="f" style="margin-top:14px"><span>Espessura do traço</span><div class="range"><input type="range" id="hlSize" min="60" max="160" step="1"><output id="hlSizeOut"></output></div></label>
+      <label class="f" style="margin-bottom:0"><span>Irregularidade</span><div class="range"><input type="range" id="hlWobble" min="0" max="100" step="1"><output id="hlWobbleOut"></output></div></label>
       <div class="row" id="igMeta">
         <label class="f"><span>Tempo</span><input type="text" id="time" spellcheck="false"></label>
         <label class="f"><span>Curtidas</span><input type="text" id="likes" spellcheck="false"></label>
@@ -310,14 +320,16 @@
     shadow:false, customCard:false, cardColor:'#FFFFFF', scale:3,
     showHeart:true, showLikes:true, showReply:true, showHide:false,
     showTranslate:false, showReplies:true,
-    ttSize:22, tail:'bl'
+    ttSize:22, tail:'bl',
+    hlColor:'#FFE14D', hlSize:105, hlWobble:45
   };
   // Só as preferências de aparência/exportação são lembradas entre sessões.
   // Conteúdo (linhas, textos, avatares) nunca é guardado.
   var PREFS = Shell.store('comentarios');
   var PERSIST = ['platform','theme','lang','width','radius','pad','bgMode','bgColor',
                  'shadow','customCard','cardColor','scale','showHeart','showLikes',
-                 'showReply','showHide','showTranslate','showReplies','ttSize','tail'];
+                 'showReply','showHide','showTranslate','showReplies','ttSize','tail',
+                 'hlColor','hlSize','hlWobble'];
 
   var S = Object.assign({}, DEFAULTS);
   (function restore(){
@@ -335,7 +347,7 @@
 
   function newRow(over){
     return Object.assign({
-      username:'username', text:'', verified:false, ring:'none',
+      username:'username', text:'', verified:false, ring:'none', highlight:'',
       time:'2w', likes:'345', repliesCount:'4', liked:false,
       avatar:{type:'none', img:null, seed:0}
     }, over || {});
@@ -519,6 +531,175 @@
     c.closePath();
   }
 
+  // ================= marcador de texto =================
+  // O traço precisa parecer feito à mão, mas não pode mudar de forma a cada
+  // tecla digitada. Por isso o acaso vem de um gerador com semente fixa,
+  // derivada do próprio trecho destacado: o mesmo texto sempre desenha o
+  // mesmo traço, e trechos diferentes desenham traços diferentes.
+  function hashStr(s){
+    var h = 2166136261, i;
+    for(i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function seeded(seed){
+    return function(){
+      seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  // Compara palavras ignorando caixa, acento e pontuação nas pontas, para o
+  // destaque casar mesmo quando a pessoa cola o trecho com vírgula ou ponto.
+  function normWord(w){
+    return String(w).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/^[^\wÀ-ÿ]+|[^\wÀ-ÿ]+$/g, '');
+  }
+
+  // Devolve um retângulo por linha atingida pelo trecho. O casamento é
+  // sequencial: acha a primeira palavra do trecho e segue enquanto as
+  // seguintes baterem, o que permite destacar frases que quebram de linha.
+  function highlightRects(c, lines, alvoTexto, tx, primeiroCentroY, alturaLinha){
+    var alvo = String(alvoTexto || '').split(/\s+/).map(normWord).filter(Boolean);
+    if(!alvo.length) return [];
+
+    var rects = [], ptr = 0, comecou = false, terminou = false;
+    var espaco = c.measureText(' ').width;
+
+    for(var i = 0; i < lines.length && !terminou; i++){
+      var palavras = String(lines[i]).split(' ');
+      var x = tx, ini = null, fim = null;
+
+      for(var j = 0; j < palavras.length; j++){
+        var larg = c.measureText(palavras[j]).width;
+        var bate = ptr < alvo.length && normWord(palavras[j]) === alvo[ptr];
+
+        if(bate){
+          if(ini === null) ini = x;
+          fim = x + larg;
+          ptr++;
+          comecou = true;
+          if(ptr >= alvo.length){ terminou = true; break; }
+        } else if(comecou){
+          // A sequência foi interrompida: para de procurar em vez de
+          // espalhar pedaços soltos de destaque pelo comentário.
+          terminou = true;
+          break;
+        }
+        x += larg + espaco;
+      }
+
+      if(ini !== null) rects.push({x:ini, y:primeiroCentroY + alturaLinha*i, w:fim - ini});
+    }
+    return rects;
+  }
+
+  // Traça uma borda ondulada passando pelos pontos, suavizada por curvas.
+  function bordaOndulada(c, pts, inicio){
+    if(inicio) c.moveTo(pts[0][0], pts[0][1]);
+    else c.lineTo(pts[0][0], pts[0][1]);
+    for(var i = 1; i < pts.length - 1; i++){
+      var mx = (pts[i][0] + pts[i+1][0]) / 2;
+      var my = (pts[i][1] + pts[i+1][1]) / 2;
+      c.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
+    }
+    c.lineTo(pts[pts.length-1][0], pts[pts.length-1][1]);
+  }
+
+  function drawMarker(c, x, centroY, larguraTexto, tamFonte, semente){
+    if(larguraTexto <= 0) return;
+    var R = seeded(semente);
+    var k = S.hlWobble / 100;              // 0 = régua, 1 = mão solta
+
+    var alt = tamFonte * 1.18 * (S.hlSize / 100);
+
+    // O que faz um traço parecer feito à mão é a ESPESSURA variar ao longo do
+    // caminho, não o traço passear longe do texto. Por isso o centro quase não
+    // se desloca e as bordas de cima e de baixo ondulam por conta própria.
+    var deriva  = k * alt * 0.10;          // deslocamento do centro: discreto
+    var espTopo = k * alt * 0.16;          // variação de espessura na borda de cima
+    var espBase = k * alt * 0.16;          // idem, embaixo, com fase própria
+    var tremor  = k * alt * 0.06;          // tremor fino ponto a ponto
+    var inclin  = (R() - 0.5) * k * alt * 0.24;
+
+    var fC = R()*6.283, fT = R()*6.283, fB = R()*6.283;
+
+    // A caneta nunca começa nem termina exatamente na palavra.
+    var x0 = x - tamFonte * (0.12 + R() * 0.35 * k);
+    var x1 = x + larguraTexto + tamFonte * (0.12 + R() * 0.35 * k);
+
+    // O comprimento de onda é fixo em pixels (uma volta a cada ~110px), não
+    // proporcional ao trecho. Sem isso, uma palavra curta recebia uma onda
+    // inteira e virava uma corcova no meio do destaque.
+    var comprimento = x1 - x0;
+    var ciclos = Math.max(0.35, Math.min(3.2, comprimento / 110));
+    var wC = ciclos * 0.7, wT = ciclos, wB = ciclos * 1.15;
+
+    // Em traço curto sobra pouco espaço para ondular sem deformar.
+    var escalaCurta = Math.min(1, comprimento / 90);
+    espTopo *= escalaCurta;
+    espBase *= escalaCurta;
+    deriva  *= escalaCurta;
+
+    // Ponta chanfrada: marcador real deixa entrada e saída inclinadas.
+    var chanfro = alt * 0.22 * (0.4 + R() * 0.6);
+
+    var segs = Math.max(8, Math.round((x1 - x0) / 7));
+    var topo = [], base = [], i, t, px, meio, ponta, hTopo, hBase;
+
+    for(i = 0; i <= segs; i++){
+      t = i / segs;
+      px = x0 + (x1 - x0) * t;
+      meio = centroY + inclin * (t - 0.5)
+           + deriva * Math.sin(t * wC * 6.28318 + fC);
+      // afina nas pontas, como a caneta encostando e levantando
+      ponta = 1 - 0.22 * Math.pow(Math.abs(t - 0.5) * 2, 2.4);
+      hTopo = alt/2 * ponta + espTopo * Math.sin(t * wT * 6.28318 + fT);
+      hBase = alt/2 * ponta + espBase * Math.sin(t * wB * 6.28318 + fB);
+      topo.push([px + (1 - t) * chanfro, meio - hTopo + (R() - 0.5) * tremor]);
+      base.push([px - t * chanfro,       meio + hBase + (R() - 0.5) * tremor]);
+    }
+
+    c.save();
+    c.fillStyle = S.hlColor;
+
+    c.globalAlpha = 0.86;
+    c.beginPath();
+    bordaOndulada(c, topo, true);
+    bordaOndulada(c, base.slice().reverse(), false);
+    c.closePath();
+    c.fill();
+
+    // Segunda passada mais estreita e deslocada: marcador de verdade quase
+    // sempre tem uma faixa mais saturada onde a caneta passou duas vezes.
+    var desl = (R() - 0.5) * alt * 0.34;
+    c.globalAlpha = 0.34;
+    c.beginPath();
+    bordaOndulada(c, topo.map(function(p, i){
+      return [p[0], p[1] + alt * (0.20 + 0.14 * (i / topo.length)) + desl];
+    }), true);
+    bordaOndulada(c, base.map(function(p, i){
+      return [p[0], p[1] - alt * (0.14 + 0.10 * (1 - i / base.length)) + desl];
+    }).reverse(), false);
+    c.closePath();
+    c.fill();
+
+    c.restore();
+  }
+
+  // Desenhado ANTES do texto, com opacidade normal. Usar multiply seria mais
+  // fiel a um marcador, mas quebra quando o fundo do PNG é transparente.
+  function paintHighlight(c, r0, lines, tx, primeiroCentroY, alturaLinha, tamFonte){
+    if(!r0.highlight) return;
+    var rects = highlightRects(c, lines, r0.highlight, tx, primeiroCentroY, alturaLinha);
+    var semente = hashStr(r0.highlight + '|' + r0.text);
+    for(var i = 0; i < rects.length; i++){
+      drawMarker(c, rects[i].x, rects[i].y, rects[i].w, tamFonte, semente + i * 7919);
+    }
+  }
+
   // ================= layouts =================
   function layoutIG(r0){
     var ringOn = r0.ring !== 'none';
@@ -570,8 +751,11 @@
       c.fillText(r0.time, cursor + 7, nameY);
     }
 
-    c.fillStyle = T.text; c.font = font(IG.textSize, 400);
+    c.font = font(IG.textSize, 400);
     var lineY = ty + IG.nameLine + 1, i;
+    // O marcador vai embaixo para o texto continuar legível por cima dele.
+    paintHighlight(c, r0, L.lines, tx, lineY + IG.textLine/2, IG.textLine, IG.textSize);
+    c.fillStyle = T.text;
     for(i=0;i<L.lines.length;i++) c.fillText(L.lines[i], tx, lineY + IG.textLine*i + IG.textLine/2 + 4.5);
     var actY = lineY + L.lines.length*IG.textLine;
 
@@ -626,8 +810,10 @@
     if(r0.verified){ drawVerified(c, after + 9, ry - 5, 13); after += 18; }
     if(lab.ttSuffix){ c.fillStyle = T.dim; c.fillText(lab.ttSuffix, after, ry); }
 
-    c.fillStyle = T.text; c.font = font(S.ttSize, 700);
+    c.font = font(S.ttSize, 700);
     var top = y0 + TT.padTop + TT.replyLine + 6;
+    paintHighlight(c, r0, L.lines, tx, top + L.textLine/2, L.textLine, S.ttSize);
+    c.fillStyle = T.text;
     for(var i=0;i<L.lines.length;i++){
       c.fillText(L.lines[i], tx, top + L.textLine*i + L.textLine/2 + S.ttSize*0.35);
     }
@@ -727,6 +913,11 @@
       $(pair[0]).value = S[pair[0]];
       $(pair[1]).textContent = S[pair[0]] + ' px';
     });
+    $('hlColor').value = S.hlColor;
+    [['hlSize','hlSizeOut'],['hlWobble','hlWobbleOut']].forEach(function(pair){
+      $(pair[0]).value = S[pair[0]];
+      $(pair[1]).textContent = S[pair[0]] + '%';
+    });
     [['mode','mode'],['platform','platform'],['theme','theme']].forEach(function(pair){
       Array.prototype.forEach.call(document.querySelectorAll('#' + pair[0] + ' button'), function(b){
         b.setAttribute('aria-pressed', String(b.dataset.v === S[pair[1]]));
@@ -744,6 +935,7 @@
     setField('time', r0.time);
     setField('likes', r0.likes);
     setField('repliesCount', r0.repliesCount);
+    setField('hl', r0.highlight || '');
     $('ring').value = r0.ring;
     $('verified').checked = r0.verified;
     $('liked').checked = r0.liked;
@@ -791,6 +983,7 @@
   bindRowText('time','time');
   bindRowText('likes','likes');
   bindRowText('repliesCount','repliesCount');
+  bindRowText('hl','highlight');
   bindRowSelect('ring','ring');
   bindRowCheck('verified','verified');
   bindRowCheck('liked','liked');
@@ -810,6 +1003,24 @@
   bindRange('radius','radius','radiusOut','px');
   bindRange('pad','pad','padOut','px');
   bindRange('ttSize','ttSize','ttSizeOut','px');
+  bindRange('hlSize','hlSize','hlSizeOut','%');
+  bindRange('hlWobble','hlWobble','hlWobbleOut','%');
+  $('hlColor').addEventListener('input', function(){ S.hlColor = this.value; render(); });
+
+  // Pega o que estiver selecionado na caixa de texto do comentário.
+  $('hlFromSel').addEventListener('click', function(){
+    var ta = $('text');
+    var sel = String(ta.value).slice(ta.selectionStart, ta.selectionEnd).trim();
+    if(!sel){ toast('Selecione um trecho no campo de texto primeiro.'); return; }
+    row().highlight = sel;
+    $('hl').value = sel;
+    render();
+  });
+  $('hlClear').addEventListener('click', function(){
+    row().highlight = '';
+    $('hl').value = '';
+    render();
+  });
   bindSeg('theme','theme');
   bindSeg('scale','scale', function(v){ return parseInt(v,10); });
   bindSeg('mode','mode', null, function(){
@@ -985,7 +1196,8 @@
     verified:['verificado','verified'],
     time:['tempo','time'],
     likes:['curtidas','likes'],
-    repliesCount:['respostas','replies']
+    repliesCount:['respostas','replies'],
+    highlight:['destaque','marcador','highlight']
   };
   function colIndex(header){
     var map = {};
@@ -1032,9 +1244,9 @@
   });
 
   $('templateCsv').addEventListener('click', function(){
-    var csv = 'usuario,comentario,verificado,tempo,curtidas,respostas\n' +
-      'noras_onroad,"When is the leopard print coming back in stock?",nao,2w,345,4\n' +
-      'sarah.jm,"Just ordered my second one 😍",sim,1w,128,2\n';
+    var csv = 'usuario,comentario,verificado,tempo,curtidas,respostas,destaque\n' +
+      'noras_onroad,"When is the leopard print coming back in stock?",nao,2w,345,4,"leopard print"\n' +
+      'sarah.jm,"Just ordered my second one 😍",sim,1w,128,2,"second one"\n';
     saveBlob(new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'}), 'modelo-comentarios.csv');
   });
 
