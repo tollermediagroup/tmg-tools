@@ -408,6 +408,23 @@
     return 'rgba(' + r + ',' + g + ',' + b + ',' + (opacityPct/100) + ')';
   }
 
+  // Camada auxiliar para compor o texto antes de projetar a sombra.
+  // Reaproveitada entre desenhos para não alocar um canvas por quadro.
+  var camadaCv = null, camadaCtx = null;
+  function camadaTexto(W, H){
+    if(!camadaCv){
+      camadaCv = document.createElement('canvas');
+      camadaCtx = camadaCv.getContext('2d');
+    }
+    if(camadaCv.width !== W || camadaCv.height !== H){
+      camadaCv.width = W;          // redimensionar já limpa o canvas
+      camadaCv.height = H;
+    } else {
+      camadaCtx.clearRect(0, 0, W, H);
+    }
+    return camadaCtx;
+  }
+
   function addRoundRect(c, x, y, w, h, r){
     r = Math.max(0, Math.min(r, w/2, h/2));
     c.moveTo(x + r, y);
@@ -495,18 +512,39 @@
       c.restore();
     }
 
-    c.save();
     // Sem caixa, a sombra vai no texto para ele não sumir sobre o vídeo.
-    if(S.shadow > 0 && S.boxOpacity === 0){
+    var sombraNoTexto = S.shadow > 0 && S.boxOpacity === 0;
+
+    if(sombraNoTexto){
+      // Desenhar o texto direto no canvas com shadow ligado projeta uma sombra
+      // POR CHAMADA de fillText: com espaçamento entre letras cada caractere é
+      // uma chamada, então a sombra do "R" caía em cima do "T" já desenhado.
+      // O mesmo valia entre linhas. Aqui o texto inteiro é composto numa camada
+      // sem sombra e depois entra de uma vez só, projetando uma sombra única do
+      // conjunto.
+      var tc = camadaTexto(W, H);
+      tc.font = fontSpec();
+      tc.textBaseline = 'middle';
+      tc.textAlign = 'left';
+      tc.fillStyle = S.textColor;
+      L.boxes.forEach(function(b){
+        drawTracked(tc, b.line, b.x + S.padX, b.py + b.h / 2 + S.fontSize * 0.04);
+      });
+
+      c.save();
       c.shadowColor = 'rgba(0,0,0,.6)';
       c.shadowBlur = S.shadow;
       c.shadowOffsetY = S.shadow * 0.2;
+      c.drawImage(camadaCv, 0, 0);
+      c.restore();
+    } else {
+      c.save();
+      c.fillStyle = S.textColor;
+      L.boxes.forEach(function(b){
+        drawTracked(c, b.line, b.x + S.padX, b.py + b.h / 2 + S.fontSize * 0.04);
+      });
+      c.restore();
     }
-    c.fillStyle = S.textColor;
-    L.boxes.forEach(function(b){
-      drawTracked(c, b.line, b.x + S.padX, b.py + b.h / 2 + S.fontSize * 0.04);
-    });
-    c.restore();
 
     return { lines:lines.length, blockW:L.blockW, blockH:L.blockH };
   }
