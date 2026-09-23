@@ -36,6 +36,15 @@
       meta: '.cube · 33³ · local'
     },
     {
+      id: 'caixinha',
+      href: 'caixinha.html',
+      nav: 'Caixinha',
+      title: 'Caixinha de perguntas',
+      desc: 'A caixinha de perguntas do Instagram em PNG transparente, uma por vez ou várias de uma vez.',
+      icon: '❓',
+      meta: 'PNG · lote · .zip'
+    },
+    {
       id: 'safezone',
       href: 'safe-zones.html',
       nav: 'Áreas seguras',
