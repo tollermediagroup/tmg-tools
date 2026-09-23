@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caixinha de perguntas — Toolbench</title>
+<meta name="description" content="Gera a caixinha de perguntas do Instagram em PNG transparente, uma por vez ou várias de uma vez.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
+<style>
+  .app{display:grid;grid-template-columns:336px 1fr;height:calc(100dvh - var(--topbar-h));min-height:0}
+
+  .panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;overscroll-behavior:contain}
+  .brand{
+    display:flex;align-items:center;gap:11px;padding:15px 20px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3;
+    background:color-mix(in srgb, var(--panel) 90%, transparent);backdrop-filter:blur(14px);
+  }
+  .brand b{font-family:var(--disp);font-size:14px;font-weight:600;letter-spacing:-.015em}
+  .brand span{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em}
+
+  fieldset{border:0;margin:0;padding:18px 20px 20px;border-bottom:1px solid var(--line-soft)}
+  legend{padding:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px}
+  label.f{display:block;margin-bottom:14px}
+  label.f:last-child{margin-bottom:0}
+  label.f > span{display:block;font-size:11.5px;font-weight:500;color:var(--ink-dim);margin-bottom:6px}
+
+  input[type=text],textarea,select{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    border-radius:var(--r);padding:9px 11px;font:inherit;font-size:13px;outline:none;
+    box-shadow:var(--shadow-1);transition:border-color .14s,box-shadow .14s,background .14s;
+  }
+  input[type=text]:hover,textarea:hover,select:hover{border-color:var(--line-strong)}
+  input[type=text]:focus,textarea:focus,select:focus{border-color:var(--focus);background:var(--panel-3);box-shadow:0 0 0 3px rgba(124,140,255,.16)}
+  textarea{resize:vertical;min-height:76px;line-height:1.5}
+  select{
+    appearance:none;cursor:pointer;padding-right:30px;
+    background-image:linear-gradient(45deg,transparent 50%,var(--ink-dim) 50%),linear-gradient(135deg,var(--ink-dim) 50%,transparent 50%);
+    background-position:calc(100% - 16px) calc(50% + 1px),calc(100% - 12px) calc(50% + 1px);
+    background-size:4px 4px;background-repeat:no-repeat;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:3px;box-shadow:var(--shadow-1)}
+  .seg button{flex:1;background:transparent;border:0;color:var(--ink-dim);font:inherit;font-size:12px;font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:background .14s,color .14s}
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed=true]{background:linear-gradient(#2E3644,#262D39);color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.05) inset}
+
+  .range{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;appearance:none;-webkit-appearance:none;height:4px;border-radius:99px;background:#2B3240;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.55),0 0 0 4px var(--accent-soft)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer}
+  .range output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:46px;text-align:right}
+
+  input[type=color]{width:36px;height:36px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--panel-2);cursor:pointer;flex:none}
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:6px}
+  .color-pair{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-dim)}
+
+  .check{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;font-size:13px;color:var(--ink-dim);transition:color .14s}
+  .check:hover{color:var(--ink)}
+  .check input{appearance:none;width:36px;height:20px;border-radius:20px;background:#2B3240;position:relative;cursor:pointer;flex:none;transition:background .18s;box-shadow:0 1px 2px rgba(0,0,0,.35) inset}
+  .check input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#7E8697;transition:.18s cubic-bezier(.3,.7,.3,1);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .check input:checked{background:var(--accent-soft);box-shadow:0 0 0 1px rgba(240,180,41,.35) inset}
+  .check input:checked::after{left:18px;background:var(--accent);box-shadow:0 1px 6px rgba(240,180,41,.5)}
+
+  .swatches{display:flex;flex-wrap:wrap;gap:7px}
+  .sw{width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.14);cursor:pointer;padding:0;transition:transform .12s}
+  .sw:hover{transform:scale(1.12)}
+
+  .file-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .hint{font-size:11px;color:var(--ink-faint);line-height:1.55;margin:8px 0 0}
+
+  /* ---------- palco ---------- */
+  .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
+  .stage-bar{display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
+  .stage-bar .spacer{flex:1}
+  .meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+  .zoom{display:flex;align-items:center;gap:9px;flex:none}
+  .zoom input[type=range]{width:104px;flex:none}
+  .zoom output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:38px;text-align:right}
+  .nav{display:flex;align-items:center;gap:6px;flex:none}
+  .nav .idx{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:52px;text-align:center}
+
+  .canvas-wrap{
+    flex:1;min-height:0;overflow:auto;display:flex;padding:24px;
+    background:repeating-conic-gradient(#191D25 0% 25%,#14181F 0% 50%) 50% / 22px 22px;
+  }
+  #preview{display:block;margin:auto;box-shadow:0 0 0 1px rgba(255,255,255,.07);border-radius:4px}
+
+  .stage-foot{display:flex;align-items:center;gap:14px;padding:14px 20px;border-top:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
+  .stage-foot .note{font-size:12px;color:var(--ink-faint);flex:1;min-width:200px;line-height:1.5}
+
+  @media (max-width:980px){
+    .app{grid-template-columns:1fr;height:auto}
+    .panel{order:2;border-right:0;border-top:1px solid var(--line);overflow:visible}
+    .stage{order:1}
+    .canvas-wrap{min-height:48vh}
+  }
+</style>
+</head>
+<body data-tool="caixinha">
+
+<div id="topbar"></div>
+<script src="shell.js"></script>
+
+<div class="app">
+
+  <aside class="panel">
+    <div class="brand"><div><b>Caixinha de perguntas</b><br><span>instagram stories</span></div></div>
+
+    <fieldset>
+      <legend>Faixa de cima</legend>
+      <label class="f" style="margin:0"><span>O que você perguntou no story</span>
+        <textarea id="prompt" spellcheck="false" style="min-height:58px"></textarea>
+      </label>
+      <p class="hint">É o texto que aparece na faixa colorida, o mesmo para todas as caixinhas.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Perguntas recebidas</legend>
+      <label class="f" style="margin:0"><span>Uma por linha</span>
+        <textarea id="questions" spellcheck="false" style="min-height:120px"></textarea>
+      </label>
+      <p class="hint">Cada linha vira uma caixinha. Use as setas na barra de cima para ver uma por uma, e “Baixar todas” para sair com tudo de uma vez.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Cor</legend>
+      <div class="swatches" id="swatches"></div>
+      <div class="row2" style="margin-top:14px">
+        <div class="color-pair"><input type="color" id="accent"><span>Faixa</span></div>
+        <div class="color-pair"><input type="color" id="cardColor"><span>Card</span></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div class="color-pair"><input type="color" id="promptColor"><span>Texto da faixa</span></div>
+        <div class="color-pair"><input type="color" id="qColor"><span>Pergunta</span></div>
+      </div>
+      <label class="check" style="margin-top:8px"><input type="checkbox" id="qUsesAccent"> Pergunta na cor da faixa</label>
+      <p class="hint">No Instagram a pergunta costuma sair na cor da faixa quando o fundo do story é colorido, e em cinza escuro quando não é.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Formato do card</legend>
+      <label class="f"><span>Largura</span><div class="range"><input type="range" id="width" min="260" max="700" step="2"><output id="widthOut"></output></div></label>
+      <label class="f"><span>Arredondamento</span><div class="range"><input type="range" id="radius" min="0" max="40" step="1"><output id="radiusOut"></output></div></label>
+      <label class="f"><span>Respiro interno</span><div class="range"><input type="range" id="pad" min="10" max="48" step="1"><output id="padOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Sombra do card</span><div class="range"><input type="range" id="shadow" min="0" max="40" step="1"><output id="shadowOut"></output></div></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Texto</legend>
+      <label class="f"><span>Tamanho da faixa</span><div class="range"><input type="range" id="promptSize" min="9" max="28" step="1"><output id="promptSizeOut"></output></div></label>
+      <label class="f"><span>Tamanho da pergunta</span><div class="range"><input type="range" id="qSize" min="11" max="40" step="1"><output id="qSizeOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Peso da pergunta</span>
+        <select id="qWeight">
+          <option value="400">Normal</option>
+          <option value="500">Médio</option>
+          <option value="600">Semibold</option>
+          <option value="700">Bold</option>
+        </select>
+      </label>
+    </fieldset>
+
+    <fieldset style="border-bottom:0">
+      <legend>Exportação</legend>
+      <label class="f"><span>Fundo do PNG</span>
+        <select id="bgMode">
+          <option value="none">Transparente</option>
+          <option value="color">Cor sólida</option>
+        </select>
+      </label>
+      <div class="color-pair" style="margin-bottom:14px"><input type="color" id="bgColor"><span>Cor do fundo</span></div>
+      <label class="f" style="margin:0"><span>Escala</span>
+        <div class="seg" id="scale">
+          <button type="button" data-v="2">2x</button>
+          <button type="button" data-v="3">3x</button>
+          <button type="button" data-v="4">4x</button>
+        </div>
+      </label>
+      <button class="btn block" type="button" id="reset" style="margin-top:16px">Restaurar padrão</button>
+    </fieldset>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-bar">
+      <div class="nav">
+        <button class="btn ghost sm" type="button" id="prev" aria-label="Anterior">‹</button>
+        <span class="idx" id="idx">1 / 1</span>
+        <button class="btn ghost sm" type="button" id="next" aria-label="Próxima">›</button>
+      </div>
+      <div class="zoom">
+        <button class="btn ghost sm" type="button" id="zoomFit">Ajustar</button>
+        <input type="range" id="zoom" min="10" max="300" step="1" value="100" aria-label="Zoom do preview">
+        <output id="zoomOut">100%</output>
+      </div>
+      <span class="spacer"></span>
+      <span class="meta" id="dims">—</span>
+    </div>
+
+    <div class="canvas-wrap"><canvas id="cv"></canvas></div>
+
+    <div class="stage-foot">
+      <p class="note" id="note">O PNG sai com fundo transparente, pronto para entrar por cima do story.</p>
+      <button class="btn" type="button" id="copy">Copiar</button>
+      <button class="btn" type="button" id="download">Baixar esta</button>
+      <button class="btn primary" type="button" id="downloadAll">Baixar todas (.zip)</button>
+    </div>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv');
+  var ctx = cv.getContext('2d');
+  var mctx = document.createElement('canvas').getContext('2d');
+
+  var DEFAULTS = {
+    accent:'#E8632A', cardColor:'#FFFFFF', promptColor:'#FFFFFF', qColor:'#E8632A',
+    qUsesAccent:true,
+    width:280, radius:14, pad:20, shadow:0,
+    promptSize:13, qSize:19, qWeight:'600',
+    bgMode:'none', bgColor:'#F2F2F2', scale:3
+  };
+
+  // Paleta aproximada das cores que o Instagram oferece no sticker.
+  var SWATCHES = ['#E8632A','#C13584','#405DE6','#1F2937','#12B886','#E1306C','#F5A623','#5B21B6'];
+
+  var PREFS = Shell.store('caixinha');
+  var S = Object.assign({}, DEFAULTS);
+  (function restore(){
+    var saved = PREFS.get(null);
+    if(!saved || typeof saved !== 'object') return;
+    Object.keys(DEFAULTS).forEach(function(k){
+      if(saved[k] !== undefined && typeof saved[k] === typeof DEFAULTS[k]) S[k] = saved[k];
+    });
+  })();
+  function savePrefs(){
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function(k){ out[k] = S[k]; });
+    PREFS.set(out);
+  }
+
+  var atual = 0;   // qual pergunta está no preview
+
+  function font(size, weight){
+    return weight + ' ' + size + 'px Inter, -apple-system, "Segoe UI", Roboto, sans-serif';
+  }
+
+  function perguntas(){
+    var lista = String($('questions').value).split('\n')
+      .map(function(l){ return l.trim(); })
+      .filter(function(l){ return l.length; });
+    return lista.length ? lista : [''];
+  }
+
+  /* =================== layout =================== */
+
+  function wrap(c, texto, maxW){
+    var out = [], paras = String(texto).split('\n'), p, i, palavras, linha, teste;
+    for(p = 0; p < paras.length; p++){
+      palavras = paras[p].split(/\s+/).filter(function(x){ return x.length; });
+      if(!palavras.length){ out.push(''); continue; }
+      linha = palavras[0];
+      for(i = 1; i < palavras.length; i++){
+        teste = linha + ' ' + palavras[i];
+        if(c.measureText(teste).width <= maxW) linha = teste;
+        else { out.push(linha); linha = palavras[i]; }
+      }
+      out.push(linha);
+    }
+    return out;
+  }
+
+  function layout(pergunta){
+    var textW = Math.max(40, S.width - S.pad * 2);
+
+    mctx.font = font(S.promptSize, 600);
+    var pLines = wrap(mctx, $('prompt').value, textW);
+    var pLineH = Math.round(S.promptSize * 1.35);
+
+    mctx.font = font(S.qSize, S.qWeight);
+    var qLines = wrap(mctx, pergunta, textW);
+    var qLineH = Math.round(S.qSize * 1.35);
+
+    // A faixa é mais apertada que o corpo; o corpo respira mais.
+    var bandPadY = Math.round(S.pad * 0.55);
+    var bodyPadY = Math.round(S.pad * 0.95);
+
+    var bandH = bandPadY * 2 + pLines.length * pLineH;
+    var bodyH = bodyPadY * 2 + qLines.length * qLineH;
+
+    return {
+      textW:textW, pLines:pLines, pLineH:pLineH, qLines:qLines, qLineH:qLineH,
+      bandPadY:bandPadY, bodyPadY:bodyPadY, bandH:bandH, bodyH:bodyH,
+      cardH:bandH + bodyH
+    };
+  }
+
+  function corPergunta(){
+    return S.qUsesAccent ? S.accent : S.qColor;
+  }
+
+  /* =================== desenho =================== */
+
+  function roundRectPath(c, x, y, w, h, r){
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y,     x + w, y + h, r);
+    c.arcTo(x + w, y + h, x,     y + h, r);
+    c.arcTo(x,     y + h, x,     y,     r);
+    c.arcTo(x,     y,     x + w, y,     r);
+    c.closePath();
+  }
+
+  function centrado(c, linhas, cx, topo, lineH, cor){
+    c.fillStyle = cor;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    for(var i = 0; i < linhas.length; i++){
+      c.fillText(linhas[i], cx, topo + lineH * i + lineH / 2);
+    }
+  }
+
+  // Margem em volta do card para caber a sombra sem cortar.
+  function margem(){ return S.shadow > 0 ? Math.ceil(S.shadow * 0.9 + 6) : 0; }
+
+  function renderTo(canvas, pergunta, escala){
+    var L = layout(pergunta);
+    var m = margem();
+    var W = S.width + m * 2, H = L.cardH + m * 2;
+
+    canvas.width  = Math.round(W * escala);
+    canvas.height = Math.round(H * escala);
+    var c = canvas.getContext('2d');
+    c.setTransform(escala, 0, 0, escala, 0, 0);
+    c.clearRect(0, 0, W, H);
+
+    if(S.bgMode === 'color'){
+      c.fillStyle = S.bgColor;
+      c.fillRect(0, 0, W, H);
+    }
+
+    var x = m, y = m;
+
+    // corpo do card
+    c.save();
+    if(S.shadow > 0){
+      c.shadowColor = 'rgba(0,0,0,.28)';
+      c.shadowBlur = S.shadow;
+      c.shadowOffsetY = S.shadow * 0.3;
+    }
+    roundRectPath(c, x, y, S.width, L.cardH, S.radius);
+    c.fillStyle = S.cardColor;
+    c.fill();
+    c.restore();
+
+    // A faixa é recortada pelo contorno do card para herdar os cantos
+    // arredondados de cima sem vazar nos de baixo.
+    c.save();
+    roundRectPath(c, x, y, S.width, L.cardH, S.radius);
+    c.clip();
+    c.fillStyle = S.accent;
+    c.fillRect(x, y, S.width, L.bandH);
+    c.restore();
+
+    var cx = x + S.width / 2;
+
+    c.font = font(S.promptSize, 600);
+    centrado(c, L.pLines, cx, y + L.bandPadY, L.pLineH, S.promptColor);
+
+    c.font = font(S.qSize, S.qWeight);
+    centrado(c, L.qLines, cx, y + L.bandH + L.bodyPadY, L.qLineH, corPergunta());
+
+    return {w:W, h:H, cardH:L.cardH};
+  }
+
+  /* =================== preview =================== */
+
+  var pendente = false;
+  function render(){
+    if(pendente) return;
+    pendente = true;
+    requestAnimationFrame(function(){
+      pendente = false;
+      var lista = perguntas();
+      if(atual >= lista.length) atual = lista.length - 1;
+      if(atual < 0) atual = 0;
+
+      var d = renderTo(cv, lista[atual], S.scale);
+      $('idx').textContent = (atual + 1) + ' / ' + lista.length;
+      $('dims').textContent = Math.round(d.w) + ' × ' + Math.round(d.h) + ' px  ·  ' + S.scale + 'x';
+      $('prev').disabled = lista.length < 2;
+      $('next').disabled = lista.length < 2;
+      aplicarZoom();
+      agendarSave();
+    });
+  }
+
+  var saveTimer = null;
+  function agendarSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePrefs, 400);
+  }
+
+  /* =================== zoom =================== */
+  // O canvas é desenhado na escala de exportação (2x a 4x), que é bem maior
+  // que o card. O tamanho de exibição é só CSS: não mexe no PNG.
+  var wrapEl = document.querySelector('.canvas-wrap');
+  var zoomModo = 'fit', zoomPct = 100;
+
+  function fitPct(){
+    var folga = 48;
+    var w = Math.max(100, wrapEl.clientWidth - folga);
+    var h = Math.max(100, wrapEl.clientHeight - folga);
+    return Math.min(w / cv.width, h / cv.height) * 100;
+  }
+  function aplicarZoom(){
+    var pct = zoomModo === 'fit' ? fitPct() : zoomPct;
+    pct = Math.min(300, Math.max(10, pct));
+    cv.style.width = (cv.width * pct / 100) + 'px';
+    cv.style.height = (cv.height * pct / 100) + 'px';
+    var r = Math.round(pct);
+    if(document.activeElement !== $('zoom')) $('zoom').value = r;
+    $('zoomOut').textContent = r + '%';
+  }
+  $('zoom').addEventListener('input', function(){
+    zoomModo = 'manual'; zoomPct = parseFloat(this.value); aplicarZoom();
+  });
+  $('zoomFit').addEventListener('click', function(){ zoomModo = 'fit'; aplicarZoom(); });
+  var resizeTick = false;
+  window.addEventListener('resize', function(){
+    if(zoomModo !== 'fit' || resizeTick) return;
+    resizeTick = true;
+    requestAnimationFrame(function(){ resizeTick = false; aplicarZoom(); });
+  });
+
+  /* =================== controles =================== */
+
+  var RANGES = [
+    ['width','width',' px'], ['radius','radius',' px'], ['pad','pad',' px'],
+    ['shadow','shadow',' px'], ['promptSize','promptSize',' px'], ['qSize','qSize',' px']
+  ];
+  RANGES.forEach(function(r){
+    var el = $(r[0]), out = $(r[0] + 'Out');
+    el.addEventListener('input', function(){
+      S[r[1]] = parseFloat(el.value);
+      out.textContent = el.value + r[2];
+      render();
+    });
+  });
+
+  ['accent','cardColor','promptColor','qColor','bgColor'].forEach(function(k){
+    $(k).addEventListener('input', function(){ S[k] = this.value; render(); });
+  });
+  $('qUsesAccent').addEventListener('change', function(){
+    S.qUsesAccent = this.checked;
+    aplicarEstadoUI();
+    render();
+  });
+  $('bgMode').addEventListener('change', function(){ S.bgMode = this.value; render(); });
+  $('qWeight').addEventListener('change', function(){ S.qWeight = this.value; render(); });
+
+  $('prompt').addEventListener('input', render);
+  $('questions').addEventListener('input', render);
+
+  function segSync(id, valor){
+    Array.prototype.forEach.call($(id).querySelectorAll('button'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.v === valor));
+    });
+  }
+  $('scale').addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if(!b) return;
+    S.scale = parseInt(b.dataset.v, 10);
+    segSync('scale', b.dataset.v);
+    render();
+  });
+
+  $('prev').addEventListener('click', function(){
+    var n = perguntas().length;
+    atual = (atual - 1 + n) % n;
+    render();
+  });
+  $('next').addEventListener('click', function(){
+    atual = (atual + 1) % perguntas().length;
+    render();
+  });
+
+  // amostras de cor
+  SWATCHES.forEach(function(cor){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw';
+    b.style.background = cor;
+    b.title = cor;
+    b.addEventListener('click', function(){
+      S.accent = cor;
+      $('accent').value = cor;
+      render();
+    });
+    $('swatches').appendChild(b);
+  });
+
+  function aplicarEstadoUI(){
+    $('accent').value = S.accent;
+    $('cardColor').value = S.cardColor;
+    $('promptColor').value = S.promptColor;
+    $('qColor').value = S.qColor;
+    $('bgColor').value = S.bgColor;
+    $('qUsesAccent').checked = S.qUsesAccent;
+    $('qColor').disabled = S.qUsesAccent;
+    $('qColor').style.opacity = S.qUsesAccent ? 0.4 : 1;
+    $('bgMode').value = S.bgMode;
+    $('qWeight').value = S.qWeight;
+    RANGES.forEach(function(r){
+      $(r[0]).value = S[r[1]];
+      $(r[0] + 'Out').textContent = S[r[1]] + r[2];
+    });
+    segSync('scale', String(S.scale));
+  }
+
+  $('reset').addEventListener('click', function(){
+    PREFS.clear();
+    S = Object.assign({}, DEFAULTS);
+    aplicarEstadoUI();
+    render();
+    Shell.toast('Campos restaurados.');
+  });
+
+  /* =================== exportação =================== */
+
+  function nomeArquivo(pergunta, i){
+    return 'caixinha-' + String(i + 1).padStart(2, '0') + '-' +
+           Shell.safeName(pergunta.slice(0, 24), 'pergunta') + '.png';
+  }
+
+  $('download').addEventListener('click', function(){
+    var lista = perguntas();
+    var off = document.createElement('canvas');
+    renderTo(off, lista[atual], S.scale);
+    Shell.canvasBlob(off).then(function(b){
+      Shell.saveBlob(b, nomeArquivo(lista[atual], atual));
+      Shell.toast('PNG salvo.');
+    }).catch(function(){ Shell.toast('Não foi possível gerar o PNG.'); });
+  });
+
+  $('copy').addEventListener('click', function(){
+    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
+      Shell.toast('Este navegador não copia imagens. Use “Baixar esta”.');
+      return;
+    }
+    var lista = perguntas();
+    var off = document.createElement('canvas');
+    renderTo(off, lista[atual], S.scale);
+    Shell.canvasBlob(off).then(function(b){
+      return navigator.clipboard.write([new ClipboardItem({'image/png': b})]);
+    }).then(function(){ Shell.toast('Imagem copiada.'); })
+      .catch(function(){ Shell.toast('O navegador bloqueou a cópia. Use “Baixar esta”.'); });
+  });
+
+  // ---------- ZIP (armazenado, sem compressão) ----------
+  var CRC = (function(){
+    var t = new Uint32Array(256), n, c, k;
+    for(n=0;n<256;n++){ c = n; for(k=0;k<8;k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(b){
+    var c = 0xFFFFFFFF;
+    for(var i=0;i<b.length;i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function dosStamp(){
+    var d = new Date();
+    return {
+      time: (d.getHours() << 11) | (d.getMinutes() << 5) | (Math.floor(d.getSeconds()/2)),
+      date: ((Math.max(1980, d.getFullYear()) - 1980) << 9) | ((d.getMonth()+1) << 5) | d.getDate()
+    };
+  }
+  function makeZip(files){
+    var enc = new TextEncoder(), parts = [], central = [], offset = 0, cdSize = 0;
+    var st = dosStamp();
+    files.forEach(function(f){
+      var name = enc.encode(f.name), crc = crc32(f.data), len = f.data.length;
+      var lh = new Uint8Array(30 + name.length), dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0, true);
+      dv.setUint16(8, 0, true); dv.setUint16(10, st.time, true); dv.setUint16(12, st.date, true);
+      dv.setUint32(14, crc, true); dv.setUint32(18, len, true); dv.setUint32(22, len, true);
+      dv.setUint16(26, name.length, true); dv.setUint16(28, 0, true);
+      lh.set(name, 30);
+      parts.push(lh, f.data);
+
+      var ch = new Uint8Array(46 + name.length), cvw = new DataView(ch.buffer);
+      cvw.setUint32(0, 0x02014b50, true); cvw.setUint16(4, 20, true); cvw.setUint16(6, 20, true);
+      cvw.setUint16(8, 0, true); cvw.setUint16(10, 0, true); cvw.setUint16(12, st.time, true); cvw.setUint16(14, st.date, true);
+      cvw.setUint32(16, crc, true); cvw.setUint32(20, len, true); cvw.setUint32(24, len, true);
+      cvw.setUint16(28, name.length, true); cvw.setUint32(42, offset, true);
+      ch.set(name, 46);
+      central.push(ch); cdSize += ch.length;
+      offset += lh.length + len;
+    });
+    var eocd = new Uint8Array(22), ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+    ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [eocd]), {type:'application/zip'});
+  }
+
+  $('downloadAll').addEventListener('click', function(){
+    var btn = this;
+    var lista = perguntas();
+    if(lista.length === 1 && !lista[0]){ Shell.toast('Escreva ao menos uma pergunta.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Gerando…';
+
+    // Um canvas só é reaproveitado para todas as imagens, então os desenhos
+    // precisam ser SEQUENCIAIS: toBlob é assíncrono, e disparar todos de uma
+    // vez deixaria vários lendo o mesmo canvas depois de ele já ter sido
+    // redesenhado pela próxima pergunta.
+    var off = document.createElement('canvas');
+    var seq = Promise.resolve(), files = [], usados = {};
+
+    lista.forEach(function(q, i){
+      seq = seq.then(function(){
+        renderTo(off, q, S.scale);
+        return Shell.canvasBlob(off)
+          .then(function(b){ return b.arrayBuffer(); })
+          .then(function(buf){
+            var nome = nomeArquivo(q, i), n = 1;
+            while(usados[nome]) nome = nomeArquivo(q, i).replace(/\.png$/, '-' + (++n) + '.png');
+            usados[nome] = true;
+            files.push({name:nome, data:new Uint8Array(buf)});
+          });
+      });
+    });
+
+    seq.then(function(){
+      Shell.saveBlob(makeZip(files), 'caixinhas-instagram.zip');
+      Shell.toast(files.length + ' imagem(ns) no .zip.');
+    }).catch(function(){
+      Shell.toast('Falhou ao gerar o .zip.');
+    }).then(function(){
+      btn.disabled = false;
+      btn.textContent = 'Baixar todas (.zip)';
+    });
+  });
+
+  /* =================== boot =================== */
+  $('prompt').value = 'O campo de perguntas está aberto.\nPergunte o que quiser :)';
+  $('questions').value = 'Qual foi o lugar mais diferente que você já visitou?\nComo você começou a editar vídeo?\nQual câmera você usa?';
+
+  aplicarEstadoUI();
+  render();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>
