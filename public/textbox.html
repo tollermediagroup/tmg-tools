@@ -101,6 +101,33 @@
   }
   .chip:hover{color:var(--ink);border-color:var(--line-strong)}
 
+  .emoji-wrap{position:relative}
+  .emoji-pop{
+    position:absolute;z-index:20;left:0;right:0;top:calc(100% + 6px);
+    background:var(--panel-2);border:1px solid var(--line-strong);border-radius:12px;
+    box-shadow:0 18px 44px rgba(0,0,0,.6);padding:10px;display:none;
+  }
+  .emoji-pop.on{display:block}
+  .emoji-tabs{display:flex;gap:3px;margin-bottom:9px;overflow-x:auto;scrollbar-width:none}
+  .emoji-tabs::-webkit-scrollbar{display:none}
+  .emoji-tabs button{
+    flex:none;background:transparent;border:0;border-radius:7px;cursor:pointer;
+    font-size:15px;line-height:1;padding:6px 8px;opacity:.55;transition:background .12s,opacity .12s;
+  }
+  .emoji-tabs button:hover{opacity:1;background:var(--panel-3)}
+  .emoji-tabs button[aria-pressed=true]{opacity:1;background:var(--panel-3);box-shadow:0 0 0 1px var(--line-strong) inset}
+  .emoji-grid{
+    display:grid;grid-template-columns:repeat(8,1fr);gap:2px;
+    max-height:186px;overflow-y:auto;overscroll-behavior:contain;
+  }
+  .emoji-grid button{
+    background:transparent;border:0;border-radius:7px;cursor:pointer;
+    font-size:19px;line-height:1;padding:5px 0;transition:background .1s;
+    font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif;
+  }
+  .emoji-grid button:hover{background:var(--panel-3)}
+  .emoji-empty{color:var(--ink-faint);font-size:11.5px;padding:14px 4px;text-align:center}
+
   .file-row{display:flex;gap:8px;align-items:center}
   .file-row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .hint{font-size:11px;color:var(--ink-faint);line-height:1.55;margin:8px 0 0}
@@ -154,7 +181,16 @@
 
     <fieldset>
       <legend>Texto</legend>
-      <textarea id="text" spellcheck="false" aria-label="Texto da legenda"></textarea>
+      <div class="emoji-wrap">
+        <textarea id="text" spellcheck="false" aria-label="Texto da legenda"></textarea>
+        <div class="file-row" style="margin-top:8px">
+          <button class="btn sm ghost" type="button" id="emojiBtn" aria-expanded="false">😀 Emoji</button>
+        </div>
+        <div class="emoji-pop" id="emojiPop" role="dialog" aria-label="Escolher emoji">
+          <div class="emoji-tabs" id="emojiTabs"></div>
+          <div class="emoji-grid" id="emojiGrid"></div>
+        </div>
+      </div>
       <p class="hint">Enter força uma quebra de linha. Sem Enter, a quebra segue a largura máxima lá embaixo.</p>
     </fieldset>
 
@@ -340,9 +376,28 @@
 
   /* =================== medição e layout =================== */
 
+  // A pilha termina nas fontes de emoji coloridas de propósito. Sem elas o
+  // navegador escolhe uma fonte de símbolos monocromática para emojis cuja
+  // apresentação padrão é TEXTO (🛡, ❤, ✈ e outros), e eles saem em preto.
   function fontSpec(){
-    return S.fontWeight + ' ' + S.fontSize + 'px "' + S.fontFamily + '", sans-serif';
+    return S.fontWeight + ' ' + S.fontSize + 'px "' + S.fontFamily + '", "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla", sans-serif';
   }
+  // Array.from corta por PONTO DE CÓDIGO, e emoji quase nunca é um ponto só:
+  // 🛡️ é escudo + seletor de cor, 👍🏽 é polegar + tom de pele, 👨‍👩‍👧 são cinco
+  // pontos unidos. Separando, o seletor não se aplica a nada e o emoji sai em
+  // preto ou desmontado. Intl.Segmenter agrupa o que o usuário vê como um
+  // caractere só.
+  var segmentador = (typeof Intl !== 'undefined' && Intl.Segmenter)
+    ? new Intl.Segmenter('pt', {granularity:'grapheme'})
+    : null;
+
+  function grafemas(str){
+    if(segmentador){
+      return Array.from(segmentador.segment(str), function(s){ return s.segment; });
+    }
+    return Array.from(str);   // navegador antigo: pior, mas não quebra
+  }
+
   function displayText(){
     return S.uppercase ? S.text.toLocaleUpperCase('pt-BR') : S.text;
   }
@@ -354,7 +409,7 @@
   function measure(c, str){
     if(!str) return 0;
     if(!S.tracking) return c.measureText(str).width;
-    var chars = Array.from(str), w = 0, i;
+    var chars = grafemas(str), w = 0, i;
     for(i = 0; i < chars.length; i++) w += c.measureText(chars[i]).width + S.tracking;
     return w - S.tracking;
   }
@@ -439,7 +494,7 @@
   // então cada caractere é posicionado manualmente.
   function drawTracked(c, str, x, y){
     if(!S.tracking){ c.fillText(str, x, y); return; }
-    var chars = Array.from(str), cx = x, i;
+    var chars = grafemas(str), cx = x, i;
     for(i = 0; i < chars.length; i++){
       c.fillText(chars[i], cx, y);
       cx += c.measureText(chars[i]).width + S.tracking;
@@ -869,6 +924,108 @@
     resizeTick = true;
     requestAnimationFrame(function(){ resizeTick = false; applyZoom(); });
   });
+
+
+  /* =================== seletor de emoji =================== */
+  var EMOJIS = {
+    '🕘': [],   // recentes, preenchido em uso
+    '😀': ['😀','😃','😄','😁','😅','🤣','😂','🙂','😉','😊','😇','🥰','😍','🤩','😘','😋','😜','🤪','🤗','🤔','🤨','😐','😏','😒','🙄','😮','😳','🥺','😢','😭','😤','😠','🤯','😱','🥳','😎','🤓','😴','🤤','😬','🙃','😶','🤐','🤒','🤕','🥴','😵','🤠','🥹'],
+    '👍': ['👍','👎','👌','🤌','✌️','🤞','🫰','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤝','🙏','💪','🦾','👏','🙌','🫶','👐','✊','👊','🤛','🤜','💅','👀','👁️','🧠','🫀'],
+    '❤️': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💯','💢','💥','💫','💦','💨','🔥','✨','⭐','🌟','💤','🎉','🎊','🎈','🎁','🏆','🥇','🥈','🥉'],
+    '🛡️': ['🛡️','⚔️','🗡️','🔒','🔓','🔑','🗝️','⚙️','🔧','🔨','🪛','🧲','🔍','🔎','💡','🔋','🔌','📱','💻','⌨️','🖥️','🖨️','📷','📸','🎥','🎬','🎤','🎧','📺','📻','⏰','⏱️','⌛','🧭','📌','📎','✂️','📝','✏️','🖊️','📒','📚','💼','🧳'],
+    '🛒': ['🛒','🛍️','💳','💰','💵','💸','🧾','🏷️','📦','🚚','✈️','🚀','⛽','🏠','🏢','🏪','🌍','🗺️','📍','🎯','📈','📉','📊','⚡','🔔','📢','📣','💬','💭','🗯️','✅','❌','⚠️','❗','❓','➕','➖','♻️','🆕','🆓','🔝','💎','👑','🧿'],
+    '🍕': ['🍕','🍔','🍟','🌭','🥪','🌮','🍿','🧂','🥗','🍣','🍜','🍝','🍞','🥐','🧀','🥑','🍓','🍌','🍎','🍊','🍉','🍇','🍑','🥥','☕','🍵','🧋','🥤','🍺','🍷','🥂','🍾','🎂','🍰','🍪','🍩','🍫','🍬','🧁'],
+    '🐶': ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🦄','🐝','🦋','🐙','🐠','🐬','🌱','🌿','🍀','🌸','🌺','🌻','🌈','☀️','🌙','⛅','🌧️','❄️','🌊']
+  };
+
+  // Emojis que aparecem em mais de uma aba ou que o navegador não desenha
+  // seriam ruído; a lista é curta de propósito, para caber sem busca.
+  var RECENTES = Shell.store('textbox.emoji');
+  var abaAtual = '😀';
+
+  function listaRecentes(){
+    var r = RECENTES.get([]);
+    return Array.isArray(r) ? r.slice(0, 24) : [];
+  }
+
+  function registrarRecente(e){
+    var r = listaRecentes().filter(function(x){ return x !== e; });
+    r.unshift(e);
+    RECENTES.set(r.slice(0, 24));
+  }
+
+  // Insere no ponto onde o cursor está, em vez de jogar no fim do texto.
+  function inserirNoCursor(ta, txt){
+    var ini = ta.selectionStart, fim = ta.selectionEnd, v = ta.value;
+    ta.value = v.slice(0, ini) + txt + v.slice(fim);
+    var pos = ini + txt.length;
+    ta.setSelectionRange(pos, pos);
+    ta.focus();
+    // dispara o mesmo caminho da digitação, para S.text e o preview atualizarem
+    ta.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+
+  function pintarGrade(){
+    var grade = $('emojiGrid');
+    grade.textContent = '';
+    var lista = abaAtual === '🕘' ? listaRecentes() : EMOJIS[abaAtual];
+
+    if(!lista.length){
+      var vazio = document.createElement('div');
+      vazio.className = 'emoji-empty';
+      vazio.textContent = 'Os que você usar aparecem aqui.';
+      grade.appendChild(vazio);
+      return;
+    }
+    lista.forEach(function(e){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = e;
+      b.title = e;
+      b.addEventListener('click', function(){
+        inserirNoCursor($('text'), e);
+        registrarRecente(e);
+        if(abaAtual === '🕘') pintarGrade();
+      });
+      grade.appendChild(b);
+    });
+  }
+
+  function montarAbas(){
+    var abas = $('emojiTabs');
+    Object.keys(EMOJIS).forEach(function(k){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = k;
+      b.setAttribute('aria-pressed', String(k === abaAtual));
+      b.addEventListener('click', function(){
+        abaAtual = k;
+        Array.prototype.forEach.call(abas.children, function(x){
+          x.setAttribute('aria-pressed', String(x === b));
+        });
+        pintarGrade();
+      });
+      abas.appendChild(b);
+    });
+  }
+
+  function abrirEmoji(abrir){
+    $('emojiPop').classList.toggle('on', abrir);
+    $('emojiBtn').setAttribute('aria-expanded', String(abrir));
+    if(abrir) pintarGrade();
+  }
+
+  $('emojiBtn').addEventListener('click', function(e){
+    e.stopPropagation();
+    abrirEmoji(!$('emojiPop').classList.contains('on'));
+  });
+  $('emojiPop').addEventListener('click', function(e){ e.stopPropagation(); });
+  document.addEventListener('click', function(){ abrirEmoji(false); });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') abrirEmoji(false);
+  });
+
+  montarAbas();
 
   /* ---------- boot ---------- */
   validarFonte();
