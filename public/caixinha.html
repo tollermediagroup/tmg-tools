@@ -249,8 +249,11 @@
 
   var atual = 0;   // qual pergunta está no preview
 
+  // A pilha termina nas fontes de emoji coloridas de propósito. Sem elas o
+  // navegador escolhe uma fonte de símbolos monocromática para emojis cuja
+  // apresentação padrão é TEXTO (🛡, ❤, ✈ e outros), e eles saem em preto.
   function font(size, weight){
-    return weight + ' ' + size + 'px Inter, -apple-system, "Segoe UI", Roboto, sans-serif';
+    return weight + ' ' + size + 'px Inter, -apple-system, "Segoe UI", Roboto, "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla", sans-serif';
   }
 
   function perguntas(){
