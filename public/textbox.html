@@ -236,6 +236,19 @@
     </fieldset>
 
     <fieldset>
+      <legend>Marca-texto</legend>
+      <label class="f"><span>Trecho a destacar</span><input type="text" id="hl" placeholder="cole ou selecione no texto acima"></label>
+      <div class="file-row" style="margin:-6px 0 14px">
+        <button class="btn sm ghost" type="button" id="hlFromSel">Usar seleção</button>
+        <button class="btn sm ghost" type="button" id="hlClear">Limpar</button>
+      </div>
+      <div class="color-pair" style="margin-bottom:14px"><input type="color" id="hlColor"><span>Cor do marcador</span></div>
+      <label class="f"><span>Espessura do traço</span><div class="range"><input type="range" id="hlSize" min="60" max="160" step="1"><output id="hlSizeOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Irregularidade</span><div class="range"><input type="range" id="hlWobble" min="0" max="100" step="1"><output id="hlWobbleOut"></output></div></label>
+      <p class="hint">O traço fica atrás do texto e à frente da caixa. Funciona igual no modo sem caixa.</p>
+    </fieldset>
+
+    <fieldset>
       <legend>Cores</legend>
       <div class="row2">
         <div class="color-pair"><input type="color" id="textColor"><span>Texto</span></div>
@@ -327,6 +340,7 @@
     text:'POV you bought the Tiktok VIRAL bodysuit dupe from Luxmery',
     fontFamily:'Inter', fontWeight:'700', fontSize:56, tracking:0, uppercase:false,
     textColor:'#000000', boxColor:'#FFFFFF', boxOpacity:100, shadow:0,
+    hlText:'', hlColor:'#FFE14D', hlSize:105, hlWobble:45,
     radius:8, padX:18, padY:8, lineGap:0,
     maxWidthPct:82, align:'center',
     posX:50, posY:50,
@@ -336,7 +350,8 @@
 
   // Preferências de estilo ficam salvas; o texto e o frame não.
   var PREFS = Shell.store('textbox');
-  var NO_PERSIST = {text:1, frameW:1, frameH:1, safeZones:1};
+  // hlText é conteúdo, como o texto: não faz sentido voltar na próxima sessão.
+  var NO_PERSIST = {text:1, hlText:1, frameW:1, frameH:1, safeZones:1};
 
   var S = Object.assign({}, DEFAULTS);
   (function restore(){
@@ -567,6 +582,9 @@
       c.restore();
     }
 
+    // Entre a caixa e o texto: o marcador cobre a caixa, mas nunca o texto.
+    paintHighlight(c, L.boxes);
+
     // Sem caixa, a sombra vai no texto para ele não sumir sobre o vídeo.
     var sombraNoTexto = S.shadow > 0 && S.boxOpacity === 0;
 
@@ -602,6 +620,188 @@
     }
 
     return { lines:lines.length, blockW:L.blockW, blockH:L.blockH };
+  }
+
+
+  /* =================== marca-texto =================== */
+  // Mesmo motor do gerador de comentários: o acaso vem de uma semente fixa
+  // derivada do trecho, então o traço não muda de forma a cada tecla digitada.
+  function hashStr(s){
+    var h = 2166136261, i;
+    for(i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function seeded(seed){
+    return function(){
+      seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function normWord(w){
+    return String(w).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/^[^\wÀ-ÿ]+|[^\wÀ-ÿ]+$/g, '');
+  }
+
+  // Posição de cada palavra dentro de uma linha já desenhada. Precisa seguir
+  // EXATAMENTE a mesma conta do desenho, senão o traço fica deslocado:
+  // sem tracking o texto sai num fillText só (medida por prefixo, que respeita
+  // kerning); com tracking sai grafema a grafema (soma dos avanços).
+  function palavrasDaLinha(c, linha, x0){
+    var out = [], i;
+    if(!S.tracking){
+      var pos = 0, partes = linha.split(' ');
+      for(i = 0; i < partes.length; i++){
+        if(partes[i]){
+          out.push({
+            texto: partes[i],
+            x: x0 + c.measureText(linha.slice(0, pos)).width,
+            w: c.measureText(partes[i]).width
+          });
+        }
+        pos += partes[i].length + 1;
+      }
+      return out;
+    }
+    var gs = grafemas(linha), x = x0, atual = null, g, larg;
+    for(i = 0; i < gs.length; i++){
+      g = gs[i];
+      larg = c.measureText(g).width;
+      if(g === ' '){
+        if(atual){ out.push(atual); atual = null; }
+      } else {
+        if(!atual) atual = {texto:'', x:x, w:0};
+        atual.texto += g;
+        atual.w = x + larg - atual.x;   // sem o tracking sobrando no fim
+      }
+      x += larg + S.tracking;
+    }
+    if(atual) out.push(atual);
+    return out;
+  }
+
+  // Um retângulo por linha atingida. Casamento sequencial: acha a primeira
+  // palavra do trecho e segue enquanto as próximas baterem, o que permite
+  // destacar uma frase que quebra de linha.
+  function highlightRects(c, boxes){
+    var alvo = String(S.hlText || '').split(/\s+/).map(normWord).filter(Boolean);
+    if(!alvo.length) return [];
+
+    var rects = [], ptr = 0, comecou = false, terminou = false, i, j;
+    for(i = 0; i < boxes.length && !terminou; i++){
+      var palavras = palavrasDaLinha(c, boxes[i].line, boxes[i].x + S.padX);
+      var ini = null, fim = null;
+
+      for(j = 0; j < palavras.length; j++){
+        if(ptr < alvo.length && normWord(palavras[j].texto) === alvo[ptr]){
+          if(ini === null) ini = palavras[j].x;
+          fim = palavras[j].x + palavras[j].w;
+          ptr++;
+          comecou = true;
+          if(ptr >= alvo.length){ terminou = true; break; }
+        } else if(comecou){
+          terminou = true;   // sequência quebrou: para em vez de espalhar pedaços
+          break;
+        }
+      }
+      if(ini !== null){
+        rects.push({x:ini, w:fim - ini, y:boxes[i].py + boxes[i].h / 2});
+      }
+    }
+    return rects;
+  }
+
+  function bordaOndulada(c, pts, inicio){
+    if(inicio) c.moveTo(pts[0][0], pts[0][1]);
+    else c.lineTo(pts[0][0], pts[0][1]);
+    for(var i = 1; i < pts.length - 1; i++){
+      var mx = (pts[i][0] + pts[i+1][0]) / 2;
+      var my = (pts[i][1] + pts[i+1][1]) / 2;
+      c.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
+    }
+    c.lineTo(pts[pts.length-1][0], pts[pts.length-1][1]);
+  }
+
+  function drawMarker(c, x, centroY, larguraTexto, tamFonte, semente){
+    if(larguraTexto <= 0) return;
+    var R = seeded(semente);
+    var k = S.hlWobble / 100;
+
+    var alt = tamFonte * 1.18 * (S.hlSize / 100);
+
+    // O que parece feito à mão é a ESPESSURA variar, não o traço passear longe
+    // do texto: por isso as bordas de cima e de baixo ondulam por conta
+    // própria e o centro quase não se desloca.
+    var deriva  = k * alt * 0.10;
+    var espTopo = k * alt * 0.16;
+    var espBase = k * alt * 0.16;
+    var tremor  = k * alt * 0.06;
+    var inclin  = (R() - 0.5) * k * alt * 0.24;
+
+    var fC = R()*6.283, fT = R()*6.283, fB = R()*6.283;
+
+    var x0 = x - tamFonte * (0.12 + R() * 0.35 * k);
+    var x1 = x + larguraTexto + tamFonte * (0.12 + R() * 0.35 * k);
+
+    // Comprimento de onda fixo em pixels: proporcional ao trecho, uma palavra
+    // curta levava uma onda inteira e virava corcova.
+    var comprimento = x1 - x0;
+    var ciclos = Math.max(0.35, Math.min(3.2, comprimento / 110));
+    var wC = ciclos * 0.7, wT = ciclos, wB = ciclos * 1.15;
+    var escalaCurta = Math.min(1, comprimento / 90);
+    espTopo *= escalaCurta; espBase *= escalaCurta; deriva *= escalaCurta;
+
+    var chanfro = alt * 0.22 * (0.4 + R() * 0.6);
+    var segs = Math.max(8, Math.round(comprimento / 7));
+    var topo = [], base = [], i, t, px, meio, ponta, hT, hB;
+
+    for(i = 0; i <= segs; i++){
+      t = i / segs;
+      px = x0 + comprimento * t;
+      meio = centroY + inclin * (t - 0.5) + deriva * Math.sin(t * wC * 6.28318 + fC);
+      ponta = 1 - 0.22 * Math.pow(Math.abs(t - 0.5) * 2, 2.4);
+      hT = alt/2 * ponta + espTopo * Math.sin(t * wT * 6.28318 + fT);
+      hB = alt/2 * ponta + espBase * Math.sin(t * wB * 6.28318 + fB);
+      topo.push([px + (1 - t) * chanfro, meio - hT + (R() - 0.5) * tremor]);
+      base.push([px - t * chanfro,       meio + hB + (R() - 0.5) * tremor]);
+    }
+
+    c.save();
+    c.fillStyle = S.hlColor;
+
+    c.globalAlpha = 0.86;
+    c.beginPath();
+    bordaOndulada(c, topo, true);
+    bordaOndulada(c, base.slice().reverse(), false);
+    c.closePath();
+    c.fill();
+
+    // segunda passada: marcador real tem uma faixa mais densa onde a caneta
+    // passou duas vezes
+    var desl = (R() - 0.5) * alt * 0.34;
+    c.globalAlpha = 0.34;
+    c.beginPath();
+    bordaOndulada(c, topo.map(function(p, i){
+      return [p[0], p[1] + alt * (0.20 + 0.14 * (i / topo.length)) + desl];
+    }), true);
+    bordaOndulada(c, base.map(function(p, i){
+      return [p[0], p[1] - alt * (0.14 + 0.10 * (1 - i / base.length)) + desl];
+    }).reverse(), false);
+    c.closePath();
+    c.fill();
+
+    c.restore();
+  }
+
+  function paintHighlight(c, boxes){
+    if(!S.hlText) return;
+    var rects = highlightRects(c, boxes);
+    var semente = hashStr(S.hlText + '|' + S.text);
+    for(var i = 0; i < rects.length; i++){
+      drawMarker(c, rects[i].x, rects[i].y, rects[i].w, S.fontSize, semente + i * 7919);
+    }
   }
 
   /* =================== render =================== */
@@ -659,6 +859,7 @@
   var RANGES = [
     ['fontSize','fontSize',' px'], ['tracking','tracking',' px'],
     ['boxOpacity','boxOpacity','%'], ['shadow','shadow',' px'],
+    ['hlSize','hlSize','%'], ['hlWobble','hlWobble','%'],
     ['radius','radius',' px'], ['padX','padX',' px'], ['padY','padY',' px'],
     ['lineGap','lineGap',' px'], ['maxWidthPct','maxWidthPct','%'],
     ['posX','posX','%'], ['posY','posY','%']
@@ -680,6 +881,8 @@
     $('uppercase').checked = S.uppercase;
     $('textColor').value = S.textColor;
     $('boxColor').value = S.boxColor;
+    $('hlColor').value = S.hlColor;
+    $('hl').value = S.hlText;
     $('safeZones').checked = S.safeZones;
     RANGES.forEach(function(r){
       $(r[0]).value = S[r[1]];
@@ -711,6 +914,23 @@
   $('textColor').addEventListener('input', function(){ S.textColor = this.value; render(); });
   $('boxColor').addEventListener('input', function(){ S.boxColor = this.value; render(); });
   $('safeZones').addEventListener('change', function(){ S.safeZones = this.checked; render(); });
+  $('hlColor').addEventListener('input', function(){ S.hlColor = this.value; render(); });
+  $('hl').addEventListener('input', function(){ S.hlText = this.value; render(); });
+
+  // Pega o que estiver selecionado na caixa de texto.
+  $('hlFromSel').addEventListener('click', function(){
+    var ta = $('text');
+    var sel = String(ta.value).slice(ta.selectionStart, ta.selectionEnd).trim();
+    if(!sel){ Shell.toast('Selecione um trecho no campo de texto primeiro.'); return; }
+    S.hlText = sel;
+    $('hl').value = sel;
+    render();
+  });
+  $('hlClear').addEventListener('click', function(){
+    S.hlText = '';
+    $('hl').value = '';
+    render();
+  });
 
   bindSeg('align', function(v){ S.align = v; });
   bindSeg('ratio', function(v){
