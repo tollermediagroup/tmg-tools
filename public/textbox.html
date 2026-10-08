@@ -243,6 +243,7 @@
         <button class="btn sm ghost" type="button" id="hlClear">Limpar</button>
       </div>
       <div class="color-pair" style="margin-bottom:14px"><input type="color" id="hlColor"><span>Cor do marcador</span></div>
+      <label class="f"><span>Opacidade</span><div class="range"><input type="range" id="hlAlpha" min="5" max="100" step="1"><output id="hlAlphaOut"></output></div></label>
       <label class="f"><span>Espessura do traço</span><div class="range"><input type="range" id="hlSize" min="60" max="160" step="1"><output id="hlSizeOut"></output></div></label>
       <label class="f" style="margin:0"><span>Irregularidade</span><div class="range"><input type="range" id="hlWobble" min="0" max="100" step="1"><output id="hlWobbleOut"></output></div></label>
       <p class="hint">O traço fica atrás do texto e à frente da caixa. Funciona igual no modo sem caixa.</p>
@@ -340,7 +341,7 @@
     text:'POV you bought the Tiktok VIRAL bodysuit dupe from Luxmery',
     fontFamily:'Inter', fontWeight:'700', fontSize:56, tracking:0, uppercase:false,
     textColor:'#000000', boxColor:'#FFFFFF', boxOpacity:100, shadow:0,
-    hlText:'', hlColor:'#FFE14D', hlSize:105, hlWobble:45,
+    hlText:'', hlColor:'#FFE14D', hlAlpha:86, hlSize:105, hlWobble:45,
     radius:8, padX:18, padY:8, lineGap:0,
     maxWidthPct:82, align:'center',
     posX:50, posY:50,
@@ -771,7 +772,13 @@
     c.save();
     c.fillStyle = S.hlColor;
 
-    c.globalAlpha = 0.86;
+    // A segunda passada acompanha a primeira em proporção fixa (~40%): é o que
+    // mantém a leitura de "caneta que passou duas vezes" em qualquer opacidade.
+    // Escalando só a primeira, em valores baixos a sobreposição ficaria mais
+    // forte que o próprio traço.
+    var op = S.hlAlpha / 100;
+
+    c.globalAlpha = op;
     c.beginPath();
     bordaOndulada(c, topo, true);
     bordaOndulada(c, base.slice().reverse(), false);
@@ -781,7 +788,7 @@
     // segunda passada: marcador real tem uma faixa mais densa onde a caneta
     // passou duas vezes
     var desl = (R() - 0.5) * alt * 0.34;
-    c.globalAlpha = 0.34;
+    c.globalAlpha = op * 0.4;
     c.beginPath();
     bordaOndulada(c, topo.map(function(p, i){
       return [p[0], p[1] + alt * (0.20 + 0.14 * (i / topo.length)) + desl];
@@ -859,7 +866,7 @@
   var RANGES = [
     ['fontSize','fontSize',' px'], ['tracking','tracking',' px'],
     ['boxOpacity','boxOpacity','%'], ['shadow','shadow',' px'],
-    ['hlSize','hlSize','%'], ['hlWobble','hlWobble','%'],
+    ['hlAlpha','hlAlpha','%'], ['hlSize','hlSize','%'], ['hlWobble','hlWobble','%'],
     ['radius','radius',' px'], ['padX','padX',' px'], ['padY','padY',' px'],
     ['lineGap','lineGap',' px'], ['maxWidthPct','maxWidthPct','%'],
     ['posX','posX','%'], ['posY','posY','%']
