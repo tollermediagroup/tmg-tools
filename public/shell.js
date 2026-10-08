@@ -45,6 +45,15 @@
       meta: 'PNG · lote · .zip'
     },
     {
+      id: 'notificacao',
+      href: 'notificacao.html',
+      nav: 'Notificação',
+      title: 'Notificação liquid glass',
+      desc: 'Notificação de celular em vidro, com o desfoque do fundo calculado do seu próprio frame.',
+      icon: '🔔',
+      meta: 'PNG · vidro · 9:16'
+    },
+    {
       id: 'safezone',
       href: 'safe-zones.html',
       nav: 'Áreas seguras',
