@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notificação liquid glass — Toolbench</title>
+<meta name="description" content="Gera notificações de celular em estilo liquid glass, em PNG transparente ou com o vidro calculado a partir do seu frame.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
+<style>
+  .app{display:grid;grid-template-columns:340px 1fr;height:calc(100dvh - var(--topbar-h));min-height:0}
+
+  .panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;overscroll-behavior:contain}
+  .brand{
+    display:flex;align-items:center;gap:11px;padding:15px 20px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:3;
+    background:color-mix(in srgb, var(--panel) 90%, transparent);backdrop-filter:blur(14px);
+  }
+  .brand b{font-family:var(--disp);font-size:14px;font-weight:600;letter-spacing:-.015em}
+  .brand span{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.04em}
+
+  fieldset{border:0;margin:0;padding:18px 20px 20px;border-bottom:1px solid var(--line-soft)}
+  legend{padding:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:14px}
+  label.f{display:block;margin-bottom:14px}
+  label.f:last-child{margin-bottom:0}
+  label.f > span{display:block;font-size:11.5px;font-weight:500;color:var(--ink-dim);margin-bottom:6px}
+
+  input[type=text],textarea,select{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    border-radius:var(--r);padding:9px 11px;font:inherit;font-size:13px;outline:none;
+    box-shadow:var(--shadow-1);transition:border-color .14s,box-shadow .14s,background .14s;
+  }
+  input[type=text]:hover,textarea:hover,select:hover{border-color:var(--line-strong)}
+  input[type=text]:focus,textarea:focus,select:focus{border-color:var(--focus);background:var(--panel-3);box-shadow:0 0 0 3px rgba(124,140,255,.16)}
+  textarea{resize:vertical;min-height:62px;line-height:1.5}
+  select{
+    appearance:none;cursor:pointer;padding-right:30px;
+    background-image:linear-gradient(45deg,transparent 50%,var(--ink-dim) 50%),linear-gradient(135deg,var(--ink-dim) 50%,transparent 50%);
+    background-position:calc(100% - 16px) calc(50% + 1px),calc(100% - 12px) calc(50% + 1px);
+    background-size:4px 4px;background-repeat:no-repeat;
+  }
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+  .seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:3px;box-shadow:var(--shadow-1)}
+  .seg button{flex:1;background:transparent;border:0;color:var(--ink-dim);font:inherit;font-size:12px;font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:background .14s,color .14s}
+  .seg button:hover{color:var(--ink)}
+  .seg button[aria-pressed=true]{background:linear-gradient(#2E3644,#262D39);color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.05) inset}
+
+  .range{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;appearance:none;-webkit-appearance:none;height:4px;border-radius:99px;background:#2B3240;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.55),0 0 0 4px var(--accent-soft)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:0;cursor:pointer}
+  .range output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:46px;text-align:right}
+
+  input[type=color]{width:36px;height:36px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--panel-2);cursor:pointer;flex:none}
+  input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:6px}
+  .color-pair{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-dim)}
+
+  .check{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;font-size:13px;color:var(--ink-dim);transition:color .14s}
+  .check:hover{color:var(--ink)}
+  .check input{appearance:none;width:36px;height:20px;border-radius:20px;background:#2B3240;position:relative;cursor:pointer;flex:none;transition:background .18s;box-shadow:0 1px 2px rgba(0,0,0,.35) inset}
+  .check input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#7E8697;transition:.18s cubic-bezier(.3,.7,.3,1);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+  .check input:checked{background:var(--accent-soft);box-shadow:0 0 0 1px rgba(240,180,41,.35) inset}
+  .check input:checked::after{left:18px;background:var(--accent);box-shadow:0 1px 6px rgba(240,180,41,.5)}
+
+  .file-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .file-row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hint{font-size:11px;color:var(--ink-faint);line-height:1.55;margin:8px 0 0}
+  .warn{font-size:11px;color:#F0B429;line-height:1.55;margin:8px 0 0}
+
+  .icon-prev{
+    width:46px;height:46px;flex:none;border:1px dashed var(--line-strong);background:#191C24 center/cover no-repeat;
+    display:grid;place-items:center;color:var(--ink-faint);font-size:17px;cursor:pointer;transition:border-color .14s;
+  }
+  .icon-prev.sq{border-radius:12px}
+  .icon-prev.ci{border-radius:50%}
+  .icon-prev:hover{border-color:var(--focus)}
+
+  /* ---------- palco ---------- */
+  .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
+  .stage-bar{display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
+  .stage-bar .spacer{flex:1}
+  .meta{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+  .zoom{display:flex;align-items:center;gap:9px;flex:none}
+  .zoom input[type=range]{width:100px;flex:none}
+  .zoom output{font-family:var(--mono);font-size:11px;color:var(--ink-dim);min-width:38px;text-align:right}
+
+  .canvas-wrap{
+    flex:1;min-height:0;overflow:auto;display:flex;padding:24px;
+    background:repeating-conic-gradient(#191D25 0% 25%,#14181F 0% 50%) 50% / 22px 22px;
+  }
+  #cv{display:block;margin:auto;box-shadow:0 0 0 1px rgba(255,255,255,.07);border-radius:4px}
+
+  .stage-foot{display:flex;align-items:center;gap:14px;padding:14px 20px;border-top:1px solid var(--line);background:var(--bg-2);flex:none;flex-wrap:wrap}
+  .stage-foot .note{font-size:12px;color:var(--ink-faint);flex:1;min-width:200px;line-height:1.5}
+
+  @media (max-width:980px){
+    .app{grid-template-columns:1fr;height:auto}
+    .panel{order:2;border-right:0;border-top:1px solid var(--line);overflow:visible}
+    .stage{order:1}
+    .canvas-wrap{min-height:48vh}
+  }
+</style>
+</head>
+<body data-tool="notificacao">
+
+<div id="topbar"></div>
+<script src="shell.js"></script>
+
+<div class="app">
+
+  <aside class="panel">
+    <div class="brand"><div><b>Notificação</b><br><span>liquid glass · ios</span></div></div>
+
+    <fieldset>
+      <legend>Conteúdo</legend>
+      <label class="f"><span>Título</span><input type="text" id="title" spellcheck="false"></label>
+      <label class="f"><span>Subtítulo (opcional)</span><input type="text" id="subtitle" spellcheck="false"></label>
+      <label class="f"><span>Mensagem</span><textarea id="body" spellcheck="false"></textarea></label>
+      <label class="f" style="margin:0"><span>Horário</span><input type="text" id="time" spellcheck="false"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ícone</legend>
+      <div class="file-row">
+        <div class="icon-prev sq" id="iconPrev" title="Clique para escolher, ou cole com Ctrl+V">+</div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+          <button class="btn sm" type="button" id="pickIcon">Escolher imagem</button>
+          <button class="btn sm ghost" type="button" id="clearIcon">Remover</button>
+        </div>
+      </div>
+      <input type="file" id="iconFile" accept="image/*" hidden>
+      <label class="f" style="margin-top:14px"><span>Formato</span>
+        <div class="seg" id="iconShape">
+          <button type="button" data-v="squircle">App</button>
+          <button type="button" data-v="circle">Avatar</button>
+        </div>
+      </label>
+      <label class="check"><input type="checkbox" id="badgeOn"> Contador no ícone</label>
+      <div class="row2" style="margin-top:6px">
+        <label class="f" style="margin:0"><span>Número</span><input type="text" id="badgeText" spellcheck="false"></label>
+        <div class="color-pair" style="align-self:end;padding-bottom:9px"><input type="color" id="badgeColor"><span>Cor</span></div>
+      </div>
+      <p class="hint">Sem imagem, o ícone sai como um quadrado neutro — dá pra deixar assim se o app não importa.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Estilo</legend>
+      <label class="f"><span>Tema</span>
+        <div class="seg" id="theme">
+          <button type="button" data-v="dark">Escuro</button>
+          <button type="button" data-v="light">Claro</button>
+        </div>
+      </label>
+      <div class="row2">
+        <div class="color-pair"><input type="color" id="tint"><span>Tom do vidro</span></div>
+        <div class="color-pair"><input type="color" id="textColor"><span>Texto</span></div>
+      </div>
+      <label class="f" style="margin-top:14px"><span>Opacidade do vidro</span><div class="range"><input type="range" id="tintAlpha" min="0" max="100" step="1"><output id="tintAlphaOut"></output></div></label>
+      <label class="f"><span>Brilho da borda</span><div class="range"><input type="range" id="rim" min="0" max="100" step="1"><output id="rimOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Sombra</span><div class="range"><input type="range" id="shadow" min="0" max="80" step="1"><output id="shadowOut"></output></div></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Vidro</legend>
+      <label class="f"><span>Como calcular</span>
+        <div class="seg" id="glassMode">
+          <button type="button" data-v="flat">Aproximado</button>
+          <button type="button" data-v="blur">Do frame</button>
+        </div>
+      </label>
+      <label class="f"><span>Desfoque</span><div class="range"><input type="range" id="blur" min="0" max="60" step="1"><output id="blurOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Saturação do fundo</span><div class="range"><input type="range" id="sat" min="100" max="260" step="5"><output id="satOut"></output></div></label>
+      <p class="hint" id="glassHint"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Formato do card</legend>
+      <label class="f"><span>Largura</span><div class="range"><input type="range" id="width" min="280" max="900" step="2"><output id="widthOut"></output></div></label>
+      <label class="f"><span>Arredondamento</span><div class="range"><input type="range" id="radius" min="8" max="70" step="1"><output id="radiusOut"></output></div></label>
+      <label class="f"><span>Respiro interno</span><div class="range"><input type="range" id="pad" min="8" max="40" step="1"><output id="padOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Tamanho do texto</span><div class="range"><input type="range" id="fontSize" min="10" max="30" step="1"><output id="fontSizeOut"></output></div></label>
+      <label class="check" style="margin-top:8px"><input type="checkbox" id="squircle" checked> Cantos contínuos (estilo iOS)</label>
+    </fieldset>
+
+    <fieldset style="border-bottom:0">
+      <legend>Frame do vídeo</legend>
+      <div class="file-row">
+        <button class="btn sm" type="button" id="pickBg">Carregar frame</button>
+        <button class="btn sm ghost" type="button" id="clearBg">Remover</button>
+        <span class="meta name" id="bgName">nenhum</span>
+      </div>
+      <input type="file" id="bgFile" accept="image/*" hidden>
+      <label class="f" style="margin-top:14px"><span>Posição horizontal</span><div class="range"><input type="range" id="posX" min="0" max="100" step="0.5"><output id="posXOut"></output></div></label>
+      <label class="f" style="margin:0"><span>Posição vertical</span><div class="range"><input type="range" id="posY" min="0" max="100" step="0.5"><output id="posYOut"></output></div></label>
+      <p class="hint">Dá pra arrastar o card direto no preview. A posição só importa na exportação em quadro inteiro e no vidro calculado do frame.</p>
+      <button class="btn block" type="button" id="reset" style="margin-top:16px">Restaurar padrão</button>
+    </fieldset>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-bar">
+      <div class="seg" id="exportMode" style="flex:none">
+        <button type="button" data-v="card">Só o card</button>
+        <button type="button" data-v="frame">Quadro inteiro</button>
+      </div>
+      <div class="seg" id="ratio" style="flex:none">
+        <button type="button" data-v="1080x1920">9:16</button>
+        <button type="button" data-v="1080x1350">4:5</button>
+        <button type="button" data-v="1080x1080">1:1</button>
+        <button type="button" data-v="1920x1080">16:9</button>
+      </div>
+      <div class="zoom">
+        <button class="btn ghost sm" type="button" id="zoomFit">Ajustar</button>
+        <input type="range" id="zoom" min="10" max="300" step="1" value="100" aria-label="Zoom do preview">
+        <output id="zoomOut">100%</output>
+      </div>
+      <span class="spacer"></span>
+      <span class="meta" id="dims">—</span>
+    </div>
+
+    <div class="canvas-wrap"><canvas id="cv"></canvas></div>
+
+    <div class="stage-foot">
+      <p class="note" id="note"></p>
+      <button class="btn" type="button" id="copy">Copiar</button>
+      <button class="btn primary" type="button" id="download">Baixar PNG</button>
+    </div>
+  </main>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv');
+  var ctx = cv.getContext('2d');
+  var mctx = document.createElement('canvas').getContext('2d');
+
+  var TEMAS = {
+    dark:  {tint:'#1C1C1E', tintAlpha:88, textColor:'#FFFFFF', badgeColor:'#F2F2F7', rim:26},
+    light: {tint:'#FFFFFF', tintAlpha:62, textColor:'#1C1C1E', badgeColor:'#1C1C1E', rim:40}
+  };
+
+  var DEFAULTS = {
+    title:'Savita Puri', subtitle:'Engagement Party',
+    body:"Hey everyone! I wanted to start a thread to plan Megha's big day next month.",
+    time:'1m ago',
+    iconShape:'squircle', badgeOn:true, badgeText:'28', badgeColor:'#F2F2F7',
+    theme:'dark', tint:'#1C1C1E', tintAlpha:88, textColor:'#FFFFFF', rim:26, shadow:26,
+    glassMode:'flat', blur:22, sat:180,
+    width:420, radius:26, pad:16, fontSize:15, squircle:true,
+    exportMode:'card', frameW:1080, frameH:1920, posX:50, posY:34
+  };
+
+  var PREFS = Shell.store('notificacao');
+  // Conteúdo e frame não voltam na próxima sessão; só o estilo.
+  var NO_PERSIST = {title:1, subtitle:1, body:1, time:1, badgeText:1, posX:1, posY:1};
+
+  var S = Object.assign({}, DEFAULTS);
+  (function restore(){
+    var saved = PREFS.get(null);
+    if(!saved || typeof saved !== 'object') return;
+    Object.keys(DEFAULTS).forEach(function(k){
+      if(NO_PERSIST[k]) return;
+      if(saved[k] !== undefined && typeof saved[k] === typeof DEFAULTS[k]) S[k] = saved[k];
+    });
+  })();
+  function savePrefs(){
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function(k){ if(!NO_PERSIST[k]) out[k] = S[k]; });
+    PREFS.set(out);
+  }
+
+  var iconImg = null, bgImg = null;
+
+  /* =================== tipografia =================== */
+
+  // SF Pro é a fonte do iOS. No Mac, -apple-system JÁ É a SF Pro; fora dele
+  // Inter é a aproximação mais próxima no desenho das letras.
+  function font(size, weight){
+    return weight + ' ' + size + 'px -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", Roboto, ' +
+           '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji", sans-serif';
+  }
+
+  // Uma palavra sozinha pode ser mais larga que o card — URL, hashtag, nome
+  // colado. Sem partir por caractere ela vaza para fora da caixa.
+  function partirPalavra(c, palavra, maxW, out){
+    var resto = '', gs = Array.from(palavra), i, g;
+    for(i = 0; i < gs.length; i++){
+      g = gs[i];
+      if(resto && c.measureText(resto + g).width > maxW){ out.push(resto); resto = g; }
+      else resto += g;
+    }
+    return resto;
+  }
+
+  function wrap(c, texto, maxW){
+    var out = [], paras = String(texto).split('\n'), p, i, palavras, linha, teste, w;
+    for(p = 0; p < paras.length; p++){
+      palavras = paras[p].split(/\s+/).filter(function(x){ return x.length; });
+      if(!palavras.length) continue;
+      linha = '';
+      for(i = 0; i < palavras.length; i++){
+        w = palavras[i];
+        teste = linha ? linha + ' ' + w : w;
+        if(c.measureText(teste).width <= maxW){ linha = teste; continue; }
+        if(linha){ out.push(linha); linha = ''; }
+        linha = (c.measureText(w).width > maxW) ? partirPalavra(c, w, maxW, out) : w;
+      }
+      if(linha) out.push(linha);
+    }
+    return out;
+  }
+
+  /* =================== formato do card =================== */
+
+  // O iOS não usa arco de círculo nos cantos: usa curva contínua (squircle),
+  // onde a curvatura entra gradualmente em vez de começar de uma vez. Em raio
+  // grande — que é o caso aqui — a diferença é visível: o arco circular deixa
+  // um "degrau" onde a reta encontra a curva.
+  function cardPath(c, x, y, w, h, r){
+    r = Math.max(0, Math.min(r, w/2, h/2));
+    c.beginPath();
+
+    if(!S.squircle){
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y,     x + w, y + h, r);
+      c.arcTo(x + w, y + h, x,     y + h, r);
+      c.arcTo(x,     y + h, x,     y,     r);
+      c.arcTo(x,     y,     x + w, y,     r);
+      c.closePath();
+      return;
+    }
+
+    // A curva começa mais longe do vértice (e = 1.28r) e os controles são
+    // puxados para dentro, que é o que alonga a transição.
+    var e = Math.min(r * 1.28, w/2, h/2);
+    var k = r * 0.46;   // alça das Béziers
+
+    c.moveTo(x + e, y);
+    c.lineTo(x + w - e, y);
+    c.bezierCurveTo(x + w - e + k, y,  x + w, y + e - k,  x + w, y + e);
+    c.lineTo(x + w, y + h - e);
+    c.bezierCurveTo(x + w, y + h - e + k,  x + w - e + k, y + h,  x + w - e, y + h);
+    c.lineTo(x + e, y + h);
+    c.bezierCurveTo(x + e - k, y + h,  x, y + h - e + k,  x, y + h - e);
+    c.lineTo(x, y + e);
+    c.bezierCurveTo(x, y + e - k,  x + e - k, y,  x + e, y);
+    c.closePath();
+  }
+
+  function rgba(hex, a){
+    var h = String(hex).replace('#','');
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return 'rgba(' + (parseInt(h.slice(0,2),16)||0) + ',' +
+                     (parseInt(h.slice(2,4),16)||0) + ',' +
+                     (parseInt(h.slice(4,6),16)||0) + ',' + a + ')';
+  }
+
+  // Luminância relativa, para decidir se a borda e o brilho devem ser claros
+  // ou escuros sem o usuário precisar ajustar à mão.
+  function claro(hex){
+    var h = String(hex).replace('#','');
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var r = parseInt(h.slice(0,2),16)||0, g = parseInt(h.slice(2,4),16)||0, b = parseInt(h.slice(4,6),16)||0;
+    return (0.2126*r + 0.7152*g + 0.0722*b) > 140;
+  }
+
+  /* =================== medidas =================== */
+
+  // Medidas do badge calculadas uma vez e usadas tanto pelo layout quanto pelo
+  // desenho. Enquanto estavam duplicadas, o badge passava por cima do título.
+  function badgeBox(iconD){
+    if(!S.badgeOn || !String(S.badgeText).trim()) return null;
+    var txt = String(S.badgeText).trim();
+    var fs = Math.round(iconD * 0.31);
+    mctx.font = font(fs, 600);
+    var tw = mctx.measureText(txt).width;
+    var h = iconD * 0.38;
+    var w = Math.max(h, tw + fs * 0.8);
+    return {
+      txt:txt, fs:fs, w:w, h:h,
+      dx: iconD - w * 0.72,   // quanto o badge avança além da esquerda do ícone
+      dy: -h * 0.26
+    };
+  }
+
+  function layout(){
+    var pad = S.pad;
+    var iconD = Math.round(S.fontSize * 3.1);
+    var badge = badgeBox(iconD);
+    // o texto começa depois do que for mais largo: o ícone ou o badge que o
+    // ultrapassa pela direita
+    var ocupado = badge ? Math.max(iconD, badge.dx + badge.w) : iconD;
+    var gap = Math.round(S.fontSize * 0.62) + Math.max(0, ocupado - iconD);
+    var fsTitle = S.fontSize;
+    var fsBody = S.fontSize;
+    var fsTime = Math.round(S.fontSize * 0.88);
+    var lineH = Math.round(S.fontSize * 1.34);
+
+    mctx.font = font(fsTime, 400);
+    var timeW = S.time ? mctx.measureText(S.time).width + gap : 0;
+
+    var textX = pad + iconD + gap;
+    void badge;
+    var textW = Math.max(40, S.width - textX - pad);
+
+    mctx.font = font(fsTitle, 600);
+    var tituloLinhas = S.title ? wrap(mctx, S.title, Math.max(30, textW - timeW)) : [];
+    var subLinhas = S.subtitle ? wrap(mctx, S.subtitle, textW) : [];
+
+    mctx.font = font(fsBody, 400);
+    var corpoLinhas = S.body ? wrap(mctx, S.body, textW) : [];
+
+    var nLinhas = tituloLinhas.length + subLinhas.length + corpoLinhas.length;
+    var alturaTexto = nLinhas * lineH;
+    var cardH = Math.round(pad * 2 + Math.max(iconD, alturaTexto));
+
+    return {
+      pad:pad, iconD:iconD, gap:gap, textX:textX, textW:textW, lineH:lineH,
+      fsTitle:fsTitle, fsBody:fsBody, fsTime:fsTime,
+      tituloLinhas:tituloLinhas, subLinhas:subLinhas, corpoLinhas:corpoLinhas,
+      cardH:cardH
+    };
+  }
+
+  // Margem para a sombra não ser cortada na exportação só do card.
+  function margem(){ return S.shadow > 0 ? Math.ceil(S.shadow * 1.1 + 8) : 0; }
+
+  /* =================== vidro =================== */
+
+  // Desenha o fundo desfocado DENTRO do contorno do card. Só funciona com um
+  // frame carregado: sem ele não existe "atrás" para desfocar.
+  function pintarVidroDoFrame(c, x, y, w, h, escala, origem){
+    if(!bgImg || !origem) return false;
+
+    var folga = Math.ceil(S.blur * 3) + 4;
+    var lx = x - folga, ly = y - folga, lw = w + folga*2, lh = h + folga*2;
+
+    var tmp = document.createElement('canvas');
+    tmp.width = Math.max(1, Math.round(lw * escala));
+    tmp.height = Math.max(1, Math.round(lh * escala));
+    var tc = tmp.getContext('2d');
+    tc.setTransform(escala, 0, 0, escala, 0, 0);
+
+    // Recorta do frame exatamente o pedaço que ficaria atrás do card.
+    tc.drawImage(origem.canvas, lx - origem.x, ly - origem.y, lw, lh, 0, 0, lw, lh);
+
+    var out = document.createElement('canvas');
+    out.width = tmp.width; out.height = tmp.height;
+    var oc = out.getContext('2d');
+    // blur + saturate: o vidro do iOS satura o que passa por ele, não só borra.
+    oc.filter = 'blur(' + (S.blur * escala) + 'px) saturate(' + S.sat + '%)';
+    oc.drawImage(tmp, 0, 0);
+    oc.filter = 'none';
+
+    c.save();
+    cardPath(c, x, y, w, h, S.radius);
+    c.clip();
+    c.drawImage(out, 0, 0, out.width, out.height, lx, ly, lw, lh);
+    c.restore();
+    return true;
+  }
+
+  function pintarCard(c, x, y, w, h, escala, origem){
+    var ehClaro = claro(S.tint);
+
+    // A sombra é montada num canvas à parte e só depois composta. Recortar o
+    // miolo direto no canvas principal (destination-out) abriria um buraco no
+    // que já estivesse desenhado — o frame de fundo, no preview em quadro
+    // inteiro — e o vidro passaria a mostrar vazio em vez da cena.
+    if(S.shadow > 0){
+      var folga = Math.ceil(S.shadow * 2 + 12);
+      var sw = Math.ceil(w + folga*2), sh = Math.ceil(h + folga*2);
+      var sCv = document.createElement('canvas');
+      sCv.width = Math.round(sw * escala);
+      sCv.height = Math.round(sh * escala);
+      var sc = sCv.getContext('2d');
+      sc.setTransform(escala, 0, 0, escala, 0, 0);
+
+      sc.shadowColor = 'rgba(0,0,0,' + (ehClaro ? 0.26 : 0.42) + ')';
+      sc.shadowBlur = S.shadow;
+      sc.shadowOffsetY = S.shadow * 0.32;
+      cardPath(sc, folga, folga, w, h, S.radius);
+      sc.fillStyle = '#000';
+      sc.fill();
+
+      // tira o miolo, sobrando só o halo — aqui é seguro, o canvas é só da sombra
+      sc.globalCompositeOperation = 'destination-out';
+      cardPath(sc, folga, folga, w, h, S.radius);
+      sc.fill();
+
+      c.drawImage(sCv, 0, 0, sCv.width, sCv.height, x - folga, y - folga, sw, sh);
+    }
+
+    var temBlur = (S.glassMode === 'blur') && pintarVidroDoFrame(c, x, y, w, h, escala, origem);
+
+    // tom do vidro por cima do que houver atrás
+    c.save();
+    cardPath(c, x, y, w, h, S.radius);
+    c.clip();
+    c.fillStyle = rgba(S.tint, S.tintAlpha / 100);
+    c.fillRect(x, y, w, h);
+
+    // Brilho especular: o vidro real pega luz na aresta de cima e devolve um
+    // pouco na de baixo. É o que separa "retângulo translúcido" de "vidro".
+    if(S.rim > 0){
+      var f = S.rim / 100;
+      var g = c.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0,    'rgba(255,255,255,' + (0.30 * f) + ')');
+      g.addColorStop(0.18, 'rgba(255,255,255,' + (0.05 * f) + ')');
+      g.addColorStop(0.82, 'rgba(255,255,255,0)');
+      g.addColorStop(1,    'rgba(255,255,255,' + (0.10 * f) + ')');
+      c.fillStyle = g;
+      c.fillRect(x, y, w, h);
+    }
+    c.restore();
+
+    // aresta: clara em cima, some nas laterais
+    if(S.rim > 0){
+      var fr = S.rim / 100;
+      c.save();
+      var gb = c.createLinearGradient(0, y, 0, y + h);
+      gb.addColorStop(0,   'rgba(255,255,255,' + (0.55 * fr) + ')');
+      gb.addColorStop(0.5, 'rgba(255,255,255,' + (0.12 * fr) + ')');
+      gb.addColorStop(1,   'rgba(255,255,255,' + (0.22 * fr) + ')');
+      c.strokeStyle = gb;
+      c.lineWidth = Math.max(0.6, S.fontSize * 0.055);
+      cardPath(c, x + c.lineWidth/2, y + c.lineWidth/2, w - c.lineWidth, h - c.lineWidth, S.radius);
+      c.stroke();
+      c.restore();
+    }
+
+    return temBlur;
+  }
+
+  /* =================== ícone =================== */
+
+  function pintarIcone(c, x, y, d){
+    c.save();
+    if(S.iconShape === 'circle'){
+      c.beginPath();
+      c.arc(x + d/2, y + d/2, d/2, 0, Math.PI*2);
+      c.closePath();
+    } else {
+      // ícone de app: mesma curva contínua do card, em escala menor
+      cardPath(c, x, y, d, d, d * 0.235);
+    }
+    c.clip();
+
+    if(iconImg){
+      var iw = iconImg.naturalWidth || iconImg.width;
+      var ih = iconImg.naturalHeight || iconImg.height;
+      var k = Math.max(d/iw, d/ih);
+      c.drawImage(iconImg, x + (d - iw*k)/2, y + (d - ih*k)/2, iw*k, ih*k);
+    } else {
+      var g = c.createLinearGradient(x, y, x + d, y + d);
+      g.addColorStop(0, '#8E8E93');
+      g.addColorStop(1, '#636366');
+      c.fillStyle = g;
+      c.fillRect(x, y, d, d);
+    }
+    c.restore();
+
+    var B = badgeBox(d);
+    if(B){
+      var txt = B.txt, bf = B.fs, bd = B.w, bh = B.h;
+      var bx = x + B.dx;
+      var by = y + B.dy;
+      c.font = font(bf, 600);
+
+      c.save();
+      // pílula quando o número é longo, círculo quando é curto
+      c.beginPath();
+      var br = bh / 2;
+      c.moveTo(bx + br, by);
+      c.lineTo(bx + bd - br, by);
+      c.arcTo(bx + bd, by, bx + bd, by + br, br);
+      c.lineTo(bx + bd, by + bh - br);
+      c.arcTo(bx + bd, by + bh, bx + bd - br, by + bh, br);
+      c.lineTo(bx + br, by + bh);
+      c.arcTo(bx, by + bh, bx, by + bh - br, br);
+      c.lineTo(bx, by + br);
+      c.arcTo(bx, by, bx + br, by, br);
+      c.closePath();
+      c.fillStyle = S.badgeColor;
+      c.fill();
+
+      c.fillStyle = claro(S.badgeColor) ? '#1C1C1E' : '#FFFFFF';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(txt, bx + bd/2, by + bh/2 + bf*0.03);
+      c.restore();
+    }
+  }
+
+  /* =================== notificação completa =================== */
+
+  function pintarNotificacao(c, x, y, escala, origem){
+    var L = layout();
+    var w = S.width, h = L.cardH;
+
+    pintarCard(c, x, y, w, h, escala, origem);
+
+    pintarIcone(c, x + L.pad, y + L.pad, L.iconD);
+
+    var tx = x + L.textX;
+    var ty = y + L.pad;
+    var corTexto = S.textColor;
+    var corFraca = rgba(S.textColor, claro(S.textColor) ? 0.62 : 0.56);
+
+    c.save();
+    c.textAlign = 'left';
+    c.textBaseline = 'middle';
+
+    var linhaY = ty;
+
+    // título + horário na mesma linha
+    if(L.tituloLinhas.length){
+      c.font = font(L.fsTitle, 600);
+      c.fillStyle = corTexto;
+      for(var i = 0; i < L.tituloLinhas.length; i++){
+        c.fillText(L.tituloLinhas[i], tx, linhaY + L.lineH/2);
+        linhaY += L.lineH;
+      }
+    }
+
+    if(S.time){
+      c.font = font(L.fsTime, 400);
+      c.fillStyle = corFraca;
+      c.textAlign = 'right';
+      c.fillText(S.time, x + w - L.pad, ty + L.lineH/2);
+      c.textAlign = 'left';
+    }
+
+    if(L.subLinhas.length){
+      c.font = font(L.fsTitle, 600);
+      c.fillStyle = corTexto;
+      for(var j = 0; j < L.subLinhas.length; j++){
+        c.fillText(L.subLinhas[j], tx, linhaY + L.lineH/2);
+        linhaY += L.lineH;
+      }
+    }
+
+    if(L.corpoLinhas.length){
+      c.font = font(L.fsBody, 400);
+      c.fillStyle = rgba(S.textColor, 0.92);
+      for(var k = 0; k < L.corpoLinhas.length; k++){
+        c.fillText(L.corpoLinhas[k], tx, linhaY + L.lineH/2);
+        linhaY += L.lineH;
+      }
+    }
+
+    c.restore();
+    return {w:w, h:h};
+  }
+
+  /* =================== cena =================== */
+
+  // Desenha o frame de fundo num canvas próprio e devolve onde ele ficou, para
+  // o vidro conseguir recortar o pedaço certo depois.
+  function montarOrigem(W, H, escala, comFundo){
+    if(!bgImg) return null;
+    var cnv = document.createElement('canvas');
+    cnv.width = Math.round(W * escala);
+    cnv.height = Math.round(H * escala);
+    var c = cnv.getContext('2d');
+    c.setTransform(escala, 0, 0, escala, 0, 0);
+    var k = Math.max(W / bgImg.width, H / bgImg.height);
+    var dw = bgImg.width * k, dh = bgImg.height * k;
+    c.drawImage(bgImg, (W - dw)/2, (H - dh)/2, dw, dh);
+    return {canvas:cnv, x:0, y:0, w:W, h:H, escala:escala, visivel:comFundo};
+  }
+
+  function render(){
+    var L = layout();
+    var escala = 1;
+
+    if(S.exportMode === 'frame'){
+      var W = S.frameW, H = S.frameH;
+      escala = 1;
+      cv.width = W; cv.height = H;
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,W,H);
+
+      var origem = montarOrigem(W, H, 1, true);
+      if(origem) ctx.drawImage(origem.canvas, 0, 0, W, H);
+
+      var cx = W * (S.posX/100) - S.width/2;
+      var cy = H * (S.posY/100) - L.cardH/2;
+      pintarNotificacao(ctx, cx, cy, 1, origem);
+
+      $('dims').textContent = W + ' × ' + H + ' px · card ' + S.width + ' × ' + L.cardH +
+        ' (' + Math.round(S.width / W * 100) + '% da largura)';
+    } else {
+      var m = margem();
+      var W2 = S.width + m*2, H2 = L.cardH + m*2;
+      cv.width = W2; cv.height = H2;
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,W2,H2);
+
+      // Para o vidro, monta um frame do tamanho do quadro e recorta o pedaço
+      // que cairia atrás do card na posição escolhida.
+      var origem2 = null;
+      if(S.glassMode === 'blur' && bgImg){
+        var fw = S.frameW, fh = S.frameH;
+        var full = montarOrigem(fw, fh, 1, false);
+        var ox = fw * (S.posX/100) - S.width/2 - m;
+        var oy = fh * (S.posY/100) - L.cardH/2 - m;
+        origem2 = {canvas:full.canvas, x:ox, y:oy, w:fw, h:fh, escala:1};
+      }
+      pintarNotificacao(ctx, m, m, 1, origem2);
+
+      $('dims').textContent = W2 + ' × ' + H2 + ' px · card ' + S.width + ' × ' + L.cardH;
+    }
+
+    aplicarZoom();
+    atualizarNota();
+    agendarSave();
+  }
+
+  var saveTimer = null;
+  function agendarSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePrefs, 400);
+  }
+
+  function atualizarNota(){
+    var n = $('note'), h = $('glassHint');
+    if(S.glassMode === 'blur'){
+      if(!bgImg){
+        n.textContent = 'O vidro calculado precisa de um frame carregado — sem ele o card sai sem desfoque.';
+        h.className = 'warn';
+        h.textContent = 'Carregue um frame ali embaixo para este modo funcionar.';
+      } else {
+        n.textContent = 'O desfoque do fundo fica embutido no PNG. Use só onde a cena está parada: se a câmera anda, o vidro não acompanha.';
+        h.className = 'hint';
+        h.textContent = 'O fundo entra no PNG. Cena parada: fica igual ao vídeo. Cena em movimento: use o modo aproximado.';
+      }
+    } else {
+      n.textContent = 'PNG com fundo transparente, pronto para entrar por cima do vídeo em qualquer movimento de câmera.';
+      h.className = 'hint';
+      h.textContent = 'Sem desfoque do fundo, então o PNG fica transparente e serve em qualquer cena. No tema escuro a diferença quase não aparece.';
+    }
+  }
+
+  /* =================== zoom =================== */
+  var wrapEl = document.querySelector('.canvas-wrap');
+  var zoomModo = 'fit', zoomPct = 100;
+
+  function fitPct(){
+    var folga = 48;
+    var w = Math.max(100, wrapEl.clientWidth - folga);
+    var h = Math.max(100, wrapEl.clientHeight - folga);
+    return Math.min(w / cv.width, h / cv.height) * 100;
+  }
+  function aplicarZoom(){
+    var pct = zoomModo === 'fit' ? fitPct() : zoomPct;
+    pct = Math.min(300, Math.max(10, pct));
+    cv.style.width = (cv.width * pct / 100) + 'px';
+    cv.style.height = (cv.height * pct / 100) + 'px';
+    var r = Math.round(pct);
+    if(document.activeElement !== $('zoom')) $('zoom').value = r;
+    $('zoomOut').textContent = r + '%';
+  }
+  $('zoom').addEventListener('input', function(){
+    zoomModo = 'manual'; zoomPct = parseFloat(this.value); aplicarZoom();
+  });
+  $('zoomFit').addEventListener('click', function(){ zoomModo = 'fit'; aplicarZoom(); });
+  var resizeTick = false;
+  window.addEventListener('resize', function(){
+    if(zoomModo !== 'fit' || resizeTick) return;
+    resizeTick = true;
+    requestAnimationFrame(function(){ resizeTick = false; aplicarZoom(); });
+  });
+
+  /* =================== controles =================== */
+
+  var RANGES = [
+    ['tintAlpha','tintAlpha','%'], ['rim','rim','%'], ['shadow','shadow',' px'],
+    ['blur','blur',' px'], ['sat','sat','%'],
+    ['width','width',' px'], ['radius','radius',' px'], ['pad','pad',' px'],
+    ['fontSize','fontSize',' px'], ['posX','posX','%'], ['posY','posY','%']
+  ];
+  RANGES.forEach(function(r){
+    var el = $(r[0]), out = $(r[0] + 'Out');
+    el.addEventListener('input', function(){
+      S[r[1]] = parseFloat(el.value);
+      out.textContent = el.value + r[2];
+      render();
+    });
+  });
+
+  [['title','title'],['subtitle','subtitle'],['body','body'],['time','time'],['badgeText','badgeText']]
+    .forEach(function(p){
+      $(p[0]).addEventListener('input', function(){ S[p[1]] = this.value; render(); });
+    });
+
+  ['tint','textColor','badgeColor'].forEach(function(k){
+    $(k).addEventListener('input', function(){ S[k] = this.value; render(); });
+  });
+  $('badgeOn').addEventListener('change', function(){ S.badgeOn = this.checked; render(); });
+  $('squircle').addEventListener('change', function(){ S.squircle = this.checked; render(); });
+
+  function segSync(id, valor){
+    Array.prototype.forEach.call($(id).querySelectorAll('button'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.v === valor));
+    });
+  }
+  function bindSeg(id, onPick){
+    $(id).addEventListener('click', function(e){
+      var b = e.target.closest('button');
+      if(!b || !b.dataset.v) return;
+      segSync(id, b.dataset.v);
+      onPick(b.dataset.v);
+      render();
+    });
+  }
+
+  bindSeg('iconShape', function(v){
+    S.iconShape = v;
+    $('iconPrev').className = 'icon-prev ' + (v === 'circle' ? 'ci' : 'sq');
+  });
+  bindSeg('theme', function(v){
+    S.theme = v;
+    Object.assign(S, TEMAS[v]);
+    aplicarEstadoUI();
+  });
+  bindSeg('glassMode', function(v){ S.glassMode = v; });
+  bindSeg('exportMode', function(v){ S.exportMode = v; zoomModo = 'fit'; });
+  bindSeg('ratio', function(v){
+    var p = v.split('x');
+    S.frameW = parseInt(p[0],10);
+    S.frameH = parseInt(p[1],10);
+  });
+
+  /* ---------- imagens ---------- */
+  function setIcon(file){
+    Shell.loadImageFile(file).then(function(img){
+      iconImg = img;
+      $('iconPrev').style.backgroundImage = 'url(' + img.src + ')';
+      $('iconPrev').textContent = '';
+      render();
+    }).catch(function(){ Shell.toast('Não deu para abrir essa imagem.'); });
+  }
+  $('pickIcon').addEventListener('click', function(){ $('iconFile').click(); });
+  $('iconPrev').addEventListener('click', function(){ $('iconFile').click(); });
+  $('iconFile').addEventListener('change', function(){
+    if(this.files[0]) setIcon(this.files[0]);
+    this.value = '';
+  });
+  $('clearIcon').addEventListener('click', function(){
+    iconImg = null;
+    $('iconPrev').style.backgroundImage = 'none';
+    $('iconPrev').textContent = '+';
+    render();
+  });
+
+  function setBg(file){
+    Shell.loadImageFile(file).then(function(img){
+      bgImg = img;
+      $('bgName').textContent = file.name.length > 20 ? file.name.slice(0,18) + '…' : file.name;
+      render();
+    }).catch(function(){ Shell.toast('Não deu para abrir essa imagem.'); });
+  }
+  $('pickBg').addEventListener('click', function(){ $('bgFile').click(); });
+  $('bgFile').addEventListener('change', function(){
+    if(this.files[0]) setBg(this.files[0]);
+    this.value = '';
+  });
+  $('clearBg').addEventListener('click', function(){
+    bgImg = null;
+    $('bgName').textContent = 'nenhum';
+    render();
+  });
+
+  // Colar: a primeira imagem vai para o frame se ainda não houver um,
+  // senão vira o ícone.
+  window.addEventListener('paste', function(e){
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for(var i = 0; i < items.length; i++){
+      if(items[i].type.indexOf('image/') === 0){
+        var f = items[i].getAsFile();
+        if(!bgImg) setBg(f); else setIcon(f);
+        break;
+      }
+    }
+  });
+
+  /* ---------- arrastar o card no preview ---------- */
+  (function(){
+    var arrastando = false;
+    function mover(e){
+      if(S.exportMode !== 'frame') return;
+      var r = cv.getBoundingClientRect();
+      if(!r.width || !r.height) return;
+      S.posX = Math.round(Math.min(1, Math.max(0, (e.clientX - r.left)/r.width)) * 200)/2;
+      S.posY = Math.round(Math.min(1, Math.max(0, (e.clientY - r.top)/r.height)) * 200)/2;
+      $('posX').value = S.posX; $('posXOut').textContent = S.posX + '%';
+      $('posY').value = S.posY; $('posYOut').textContent = S.posY + '%';
+      render();
+    }
+    cv.addEventListener('pointerdown', function(e){
+      if(S.exportMode !== 'frame') return;
+      arrastando = true;
+      cv.setPointerCapture(e.pointerId);
+      mover(e);
+    });
+    cv.addEventListener('pointermove', function(e){ if(arrastando) mover(e); });
+    cv.addEventListener('pointerup', function(e){
+      arrastando = false;
+      if(cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+    });
+    cv.addEventListener('pointercancel', function(){ arrastando = false; });
+  })();
+
+  /* =================== exportação =================== */
+
+  // O preview já é o resultado final em 1x. Aqui só redesenha na escala pedida.
+  function exportCanvas(escala){
+    var L = layout();
+    var off = document.createElement('canvas');
+    var c;
+
+    if(S.exportMode === 'frame'){
+      var W = S.frameW, H = S.frameH;
+      off.width = Math.round(W * escala);
+      off.height = Math.round(H * escala);
+      c = off.getContext('2d');
+      c.setTransform(escala, 0, 0, escala, 0, 0);
+      // O frame de fundo nunca entra no PNG: ele é referência, não conteúdo.
+      var origem = (S.glassMode === 'blur') ? montarOrigem(W, H, escala, false) : null;
+      pintarNotificacao(c, W*(S.posX/100) - S.width/2, H*(S.posY/100) - L.cardH/2, escala, origem);
+    } else {
+      var m = margem();
+      off.width = Math.round((S.width + m*2) * escala);
+      off.height = Math.round((L.cardH + m*2) * escala);
+      c = off.getContext('2d');
+      c.setTransform(escala, 0, 0, escala, 0, 0);
+      var origem2 = null;
+      if(S.glassMode === 'blur' && bgImg){
+        var full = montarOrigem(S.frameW, S.frameH, escala, false);
+        origem2 = {
+          canvas: full.canvas,
+          x: S.frameW*(S.posX/100) - S.width/2 - m,
+          y: S.frameH*(S.posY/100) - L.cardH/2 - m,
+          escala: escala
+        };
+      }
+      pintarNotificacao(c, m, m, escala, origem2);
+    }
+    return off;
+  }
+
+  // Em "quadro inteiro" o PNG já sai no tamanho do vídeo, então 1x basta.
+  // Em "só o card" vale ampliar, porque ele costuma ser reduzido no editor.
+  function escalaExport(){ return S.exportMode === 'frame' ? 1 : 3; }
+
+  $('download').addEventListener('click', function(){
+    Shell.canvasBlob(exportCanvas(escalaExport())).then(function(b){
+      Shell.saveBlob(b, 'notificacao-' + Shell.safeName(S.title, 'card') + '.png');
+      Shell.toast('PNG salvo.');
+    }).catch(function(){ Shell.toast('Não foi possível gerar o PNG.'); });
+  });
+
+  $('copy').addEventListener('click', function(){
+    if(!navigator.clipboard || typeof ClipboardItem === 'undefined'){
+      Shell.toast('Este navegador não copia imagens. Use “Baixar PNG”.');
+      return;
+    }
+    Shell.canvasBlob(exportCanvas(escalaExport())).then(function(b){
+      return navigator.clipboard.write([new ClipboardItem({'image/png': b})]);
+    }).then(function(){ Shell.toast('Imagem copiada.'); })
+      .catch(function(){ Shell.toast('O navegador bloqueou a cópia. Use “Baixar PNG”.'); });
+  });
+
+  $('reset').addEventListener('click', function(){
+    PREFS.clear();
+    S = Object.assign({}, DEFAULTS);
+    iconImg = null; bgImg = null;
+    $('iconPrev').style.backgroundImage = 'none';
+    $('iconPrev').textContent = '+';
+    $('bgName').textContent = 'nenhum';
+    aplicarEstadoUI();
+    render();
+    Shell.toast('Campos restaurados.');
+  });
+
+  /* =================== estado da UI =================== */
+
+  function aplicarEstadoUI(){
+    $('title').value = S.title;
+    $('subtitle').value = S.subtitle;
+    $('body').value = S.body;
+    $('time').value = S.time;
+    $('badgeText').value = S.badgeText;
+    $('badgeOn').checked = S.badgeOn;
+    $('squircle').checked = S.squircle;
+    $('tint').value = S.tint;
+    $('textColor').value = S.textColor;
+    $('badgeColor').value = S.badgeColor;
+    RANGES.forEach(function(r){
+      $(r[0]).value = S[r[1]];
+      $(r[0] + 'Out').textContent = S[r[1]] + r[2];
+    });
+    segSync('iconShape', S.iconShape);
+    segSync('theme', S.theme);
+    segSync('glassMode', S.glassMode);
+    segSync('exportMode', S.exportMode);
+    segSync('ratio', S.frameW + 'x' + S.frameH);
+    $('iconPrev').className = 'icon-prev ' + (S.iconShape === 'circle' ? 'ci' : 'sq');
+  }
+
+  /* =================== boot =================== */
+  aplicarEstadoUI();
+  render();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>
