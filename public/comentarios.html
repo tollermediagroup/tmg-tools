@@ -167,6 +167,20 @@
         </select>
       </label>
       <label class="check"><input type="checkbox" id="verified"> Selo de verificado</label>
+
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="hideName"> Ocultar o nome</label>
+      <div id="hideBox" style="display:none">
+        <label class="f" style="margin-top:8px"><span>Como ocultar</span>
+          <div class="seg" id="hideStyle">
+            <button type="button" data-v="blur">Borrão</button>
+            <button type="button" data-v="bar">Barra</button>
+          </div>
+        </label>
+        <label class="f"><span>Largura sem nome digitado</span><div class="range"><input type="range" id="hideW" min="40" max="220" step="2"><output id="hideWOut"></output></div></label>
+        <label class="f" style="margin-bottom:0"><span>Intensidade do borrão</span><div class="range"><input type="range" id="hideBlur" min="1" max="14" step="1"><output id="hideBlurOut"></output></div></label>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="hideAvatar"> Ocultar a foto também</label>
+        <p class="hint">Com um nome digitado, ele mesmo é borrado. Sem nome, o borrão sai na largura acima, parecendo um nome escondido.</p>
+      </div>
     </fieldset>
 
     <fieldset>
@@ -321,7 +335,8 @@
     showHeart:true, showLikes:true, showReply:true, showHide:false,
     showTranslate:false, showReplies:true,
     ttSize:22, tail:'bl',
-    hlColor:'#FFE14D', hlSize:105, hlWobble:45
+    hlColor:'#FFE14D', hlSize:105, hlWobble:45,
+    hideName:'off', hideStyle:'blur', hideW:96, hideBlur:9, hideAvatar:false
   };
   // Só as preferências de aparência/exportação são lembradas entre sessões.
   // Conteúdo (linhas, textos, avatares) nunca é guardado.
@@ -329,7 +344,8 @@
   var PERSIST = ['platform','theme','lang','width','radius','pad','bgMode','bgColor',
                  'shadow','customCard','cardColor','scale','showHeart','showLikes',
                  'showReply','showHide','showTranslate','showReplies','ttSize','tail',
-                 'hlColor','hlSize','hlWobble'];
+                 'hlColor','hlSize','hlWobble',
+                 'hideName','hideStyle','hideW','hideBlur','hideAvatar'];
 
   var S = Object.assign({}, DEFAULTS);
   (function restore(){
@@ -474,10 +490,114 @@
     c.restore();
   }
 
+  // ============ ocultar identidade ============
+  // Um nome borrado precisa de duas coisas: largura plausível de nome e textura
+  // de letras. Com nome digitado, borra o próprio nome. Sem nome, desenha um
+  // placeholder de largura fixa — o blur de nada não produz nada.
+  var PLACEHOLDER = 'username_';
+
+  function textoOculto(c, nome, larguraAlvo){
+    if(String(nome || '').trim()) return String(nome);
+    if(larguraAlvo <= 0) return '';
+    // repete o placeholder até cobrir a largura pedida, depois corta
+    var base = PLACEHOLDER, s = base;
+    while(c.measureText(s).width < larguraAlvo && s.length < 60) s += base;
+    while(s.length > 1 && c.measureText(s).width > larguraAlvo) s = s.slice(0, -1);
+    return s;
+  }
+
+  // Devolve a largura ocupada, para quem chama posicionar o que vem depois.
+  // maxW limita o placeholder onde o espaço é contado (o prefixo "Reply to"
+  // do TikTok deixa pouca sobra); sem ele o borrão passaria por cima do sufixo.
+  function drawNomeOculto(c, nome, x, baselineY, cor, alturaFonte, maxW){
+    var alvo = S.hideW;
+    if(maxW != null) alvo = Math.min(alvo, maxW);
+    var txt = textoOculto(c, nome, alvo);
+    if(!txt) return 0;
+    var w = c.measureText(txt).width;
+
+    if(S.hideStyle === 'bar'){
+      // barra sólida com cantos arredondados, como o print de referência
+      var h = alturaFonte * 0.92, y = baselineY - h * 0.78, r = h * 0.28;
+      c.save();
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y,     x + w, y + h, r);
+      c.arcTo(x + w, y + h, x,     y + h, r);
+      c.arcTo(x,     y + h, x,     y,     r);
+      c.arcTo(x,     y,     x + w, y,     r);
+      c.closePath();
+      c.fillStyle = cor;
+      c.globalAlpha = 0.5;
+      c.fill();
+      c.restore();
+      return w;
+    }
+
+    // Borrão: o texto é desenhado numa camada à parte e borrado ali. Borrar
+    // direto no canvas principal pegaria tudo o que já está desenhado.
+    var folga = Math.ceil(S.hideBlur * 3) + 6;
+    var cw = Math.ceil(w + folga * 2), ch = Math.ceil(alturaFonte * 2.4 + folga * 2);
+    var tmp = document.createElement('canvas');
+    tmp.width = cw; tmp.height = ch;
+    var tc = tmp.getContext('2d');
+    tc.font = c.font;              // mesma fonte, senão a largura não bate
+    tc.fillStyle = cor;
+    tc.textBaseline = 'alphabetic';
+    var by = folga + alturaFonte * 1.2;
+    // O blur espalha a tinta e a mancha fica pálida, tanto mais quanto maior o
+    // raio. Repetir o fillText não resolve: o alfa já satura na segunda passada.
+    // O que devolve densidade é ENGROSSAR as letras antes de borrar, com um
+    // contorno proporcional ao raio.
+    tc.strokeStyle = cor;
+    tc.lineJoin = 'round';
+    tc.lineWidth = Math.max(1, S.hideBlur * 0.15);
+    tc.strokeText(txt, folga, by);
+    tc.fillText(txt, folga, by);
+
+    c.save();
+    c.filter = 'blur(' + S.hideBlur + 'px)';
+    c.drawImage(tmp, x - folga, baselineY - by);
+    c.restore();
+    return w;
+  }
+
   function drawAvatar(c, r0, cx, cy, d, T){
     var rad = d/2, av = r0.avatar;
+
+    // Com o avatar oculto, ele é montado numa camada à parte e borrado ali:
+    // o recorte circular é aplicado DEPOIS do blur, senão a borda do círculo
+    // borra junto e o avatar fica com a silhueta esfumaçada.
+    if(S.hideAvatar){
+      var folga = Math.ceil(S.hideBlur * 3) + 4;
+      var lado = Math.ceil(d + folga * 2);
+      var tmp = document.createElement('canvas');
+      tmp.width = lado; tmp.height = lado;
+      var tc = tmp.getContext('2d');
+      desenharMioloAvatar(tc, r0, lado/2, lado/2, d, T);
+
+      var borrado = document.createElement('canvas');
+      borrado.width = lado; borrado.height = lado;
+      var bc = borrado.getContext('2d');
+      bc.filter = 'blur(' + S.hideBlur + 'px)';
+      bc.drawImage(tmp, 0, 0);
+
+      c.save();
+      c.beginPath(); c.arc(cx, cy, rad, 0, Math.PI*2); c.closePath(); c.clip();
+      c.drawImage(borrado, cx - lado/2, cy - lado/2);
+      c.restore();
+      return;
+    }
+
     c.save();
     c.beginPath(); c.arc(cx, cy, rad, 0, Math.PI*2); c.closePath(); c.clip();
+    desenharMioloAvatar(c, r0, cx, cy, d, T);
+    c.restore();
+  }
+
+  // O conteúdo do avatar, sem o recorte circular — usado nos dois caminhos.
+  function desenharMioloAvatar(c, r0, cx, cy, d, T){
+    var rad = d/2, av = r0.avatar;
     if(av.type === 'img' && av.img){
       var iw = av.img.naturalWidth || av.img.width, ih = av.img.naturalHeight || av.img.height;
       var k = Math.max(d/iw, d/ih);
@@ -499,7 +619,6 @@
       c.beginPath(); c.arc(cx, cy-d*0.10, d*0.20, 0, Math.PI*2); c.fill();
       c.beginPath(); c.arc(cx, cy+d*0.44, d*0.33, Math.PI, Math.PI*2); c.fill();
     }
-    c.restore();
   }
 
   function drawVerified(c, cx, cy, size, color){
@@ -746,8 +865,14 @@
     var nameY = ty + IG.nameLine/2 + 4.5;
 
     c.fillStyle = T.name; c.font = font(IG.nameSize, 600);
-    c.fillText(r0.username, tx, nameY);
-    var cursor = tx + c.measureText(r0.username).width;
+    var larguraNome;
+    if(S.hideName === 'on'){
+      larguraNome = drawNomeOculto(c, r0.username, tx, nameY, T.name, IG.nameSize);
+    } else {
+      c.fillText(r0.username, tx, nameY);
+      larguraNome = c.measureText(r0.username).width;
+    }
+    var cursor = tx + larguraNome;
     if(r0.verified){ drawVerified(c, cursor + 10, nameY - 4.5, 12); cursor += 16; }
     if(r0.time){
       c.fillStyle = T.dim; c.font = font(IG.timeSize, 400);
@@ -808,8 +933,15 @@
     var nameMax = Math.max(30, L.textW - pw - c.measureText(lab.ttSuffix).width);
     var nm = ellipsize(c, r0.username, nameMax);
     c.fillStyle = T.dim;  c.fillText(lab.ttPrefix, tx, ry);
-    c.fillStyle = T.dim2; c.fillText(nm, tx + pw, ry);
-    var after = tx + pw + c.measureText(nm).width;
+    var larguraNm;
+    if(S.hideName === 'on'){
+      c.fillStyle = T.dim2;
+      larguraNm = drawNomeOculto(c, nm, tx + pw, ry, T.dim2, TT.replySize, nameMax);
+    } else {
+      c.fillStyle = T.dim2; c.fillText(nm, tx + pw, ry);
+      larguraNm = c.measureText(nm).width;
+    }
+    var after = tx + pw + larguraNm;
     if(r0.verified){ drawVerified(c, after + 9, ry - 5, 13); after += 18; }
     if(lab.ttSuffix){ c.fillStyle = T.dim; c.fillText(lab.ttSuffix, after, ry); }
 
@@ -917,6 +1049,16 @@
       $(pair[1]).textContent = S[pair[0]] + ' px';
     });
     $('hlColor').value = S.hlColor;
+    $('hideName').checked = S.hideName === 'on';
+    $('hideAvatar').checked = S.hideAvatar;
+    [['hideW','hideWOut'],['hideBlur','hideBlurOut']].forEach(function(pair){
+      $(pair[0]).value = S[pair[0]];
+      $(pair[1]).textContent = S[pair[0]] + ' px';
+    });
+    Array.prototype.forEach.call($('hideStyle').querySelectorAll('button'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.v === S.hideStyle));
+    });
+    syncHideUI();
     [['hlSize','hlSizeOut'],['hlWobble','hlWobbleOut']].forEach(function(pair){
       $(pair[0]).value = S[pair[0]];
       $(pair[1]).textContent = S[pair[0]] + '%';
@@ -1006,6 +1148,34 @@
   bindRange('radius','radius','radiusOut','px');
   bindRange('pad','pad','padOut','px');
   bindRange('ttSize','ttSize','ttSizeOut','px');
+  bindRange('hideW','hideW','hideWOut','px');
+  bindRange('hideBlur','hideBlur','hideBlurOut','px');
+
+  function syncHideUI(){
+    $('hideBox').style.display = S.hideName === 'on' ? 'block' : 'none';
+    // o controle de intensidade não faz nada no modo barra
+    var ehBarra = S.hideStyle === 'bar';
+    $('hideBlur').disabled = ehBarra;
+    $('hideBlur').parentNode.style.opacity = ehBarra ? 0.4 : 1;
+  }
+
+  $('hideName').addEventListener('change', function(){
+    S.hideName = this.checked ? 'on' : 'off';
+    syncHideUI();
+    render();
+  });
+  $('hideAvatar').addEventListener('change', function(){ S.hideAvatar = this.checked; render(); });
+  $('hideStyle').addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if(!b || !b.dataset.v) return;
+    S.hideStyle = b.dataset.v;
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    syncHideUI();
+    render();
+  });
+
   bindRange('hlSize','hlSize','hlSizeOut','%');
   bindRange('hlWobble','hlWobble','hlWobbleOut','%');
   $('hlColor').addEventListener('input', function(){ S.hlColor = this.value; render(); });
